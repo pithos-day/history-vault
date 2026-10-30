@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { type ReactNode, useRef } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 
 interface VirtualListProps<T> {
   items: T[];
@@ -26,6 +26,15 @@ export function VirtualList<T>({
     estimateSize: typeof estimateSize === 'number' ? () => estimateSize : estimateSize,
     overscan: 10,
   });
+
+  useEffect(() => {
+    const element = parentRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => virtualizer.measure());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [virtualizer]);
 
   if (items.length === 0) {
     return <div className={`empty-list ${className ?? ''}`}>{empty}</div>;

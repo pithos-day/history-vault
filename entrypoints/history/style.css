@@ -1530,11 +1530,11 @@ button {
   }
 
   .workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 280px;
   }
 
   .workspace .entries-panel {
-    display: none;
+    display: flex;
   }
 
   .calendar-grid {
