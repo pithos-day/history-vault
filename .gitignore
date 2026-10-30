@@ -1,0 +1,46 @@
+# dependencies
+node_modules
+
+# build output
+.output
+.wxt
+stats.html
+stats-*.json
+
+# test output
+coverage
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# environment variables
+.env
+.env.*
+!.env.example
+
+# browser extension artifacts
+*.zip
+*.crx
+*.xpi
+*.pem
+
+# WXT local browser config
+web-ext.config.ts
+
+# editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

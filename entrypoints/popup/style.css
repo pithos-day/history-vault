@@ -1,0 +1,153 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --background: #0b1120;
+  --surface: #111c2e;
+  --surface-raised: #17233a;
+  --border: #22314a;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --gold: #fbbf24;
+  --gold-soft: #fde68a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 340px;
+  background: var(--background);
+  color: var(--text);
+}
+
+.app {
+  display: grid;
+  width: 340px;
+  gap: 16px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(251 191 36 / 10%), transparent 45%), var(--background);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: grid;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  color: var(--gold);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+.brand-mark svg {
+  width: 28px;
+  height: 28px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.brand p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.panel {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--surface-raised), var(--surface));
+}
+
+.eyebrow {
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.copy {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.checklist {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--gold-soft);
+  font-size: 12px;
+  list-style: none;
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checklist li::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  content: '';
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel {
+    animation: rise 180ms ease-out;
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# ビルドスクリプトの実行ポリシー (pnpm v11+ は allowBuilds マップを使用)
+allowBuilds:
+  esbuild: true
+
+# packageManagerDependencies がある環境で pnpm run のたびに install が走るため無効化
+verifyDepsBeforeRun: false
+minimumReleaseAgeExclude:
+  - eslint@10.14.0

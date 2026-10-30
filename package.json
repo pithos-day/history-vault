@@ -1,0 +1,85 @@
+{
+  "name": "history-vault",
+  "displayName": "History Vault",
+  "description": "A private vault for your browsing history.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "compile": "tsc --noEmit",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "lint": "biome check . && eslint .",
+    "lint:fix": "biome check --write . && eslint . --fix",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "knip": "knip",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm knip",
+    "postinstall": "wxt prepare",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "biome check --write --no-errors-on-unmatched",
+      "eslint --fix --no-warn-ignored"
+    ],
+    "*.{json,jsonc,css,html}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
+  },
+  "keywords": [
+    "browser-extension",
+    "history",
+    "wxt",
+    "react",
+    "typescript"
+  ],
+  "author": "pithos",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pithos-day/history-vault.git"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.8.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.8.0",
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@wxt-dev/module-react": "^1.2.2",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "happy-dom": "^21.0.4",
+    "husky": "^9.1.7",
+    "knip": "^6.44.0",
+    "lint-staged": "^17.6.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^4.1.12",
+    "web-ext": "^10.8.0",
+    "wxt": "^0.21.5"
+  }
+}
