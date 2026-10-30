@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: ({ browser }) => ({
     name: 'History Vault',
     description: 'A private vault for your browsing history.',
-    permissions: ['history', 'storage'],
+    permissions: ['history', 'storage', 'unlimitedStorage', 'favicon', 'alarms'],
     ...(browser === 'firefox' && {
       browser_specific_settings: {
         gecko: {
