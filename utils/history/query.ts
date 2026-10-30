@@ -142,15 +142,6 @@ export async function getStorageEstimate(): Promise<{ usage: number; quota: numb
   }
 }
 
-export async function setMeta(key: string, value: unknown): Promise<void> {
-  await db.meta.put({ key, value });
-}
-
-export async function getMeta<T>(key: string): Promise<T | undefined> {
-  const record = await db.meta.get(key);
-  return record?.value as T | undefined;
-}
-
 async function cleanupPage(url: string): Promise<void> {
   const remaining = await db.visits.where('url').equals(url).toArray();
   if (remaining.length === 0) {
@@ -158,6 +149,16 @@ async function cleanupPage(url: string): Promise<void> {
     return;
   }
 
-  const latest = remaining.reduce((max, visit) => Math.max(max, visit.visitedAt), 0);
-  await db.pages.update(url, { lastVisitTime: latest });
+  let first = Number.POSITIVE_INFINITY;
+  let last = 0;
+  for (const visit of remaining) {
+    first = Math.min(first, visit.visitedAt);
+    last = Math.max(last, visit.visitedAt);
+  }
+
+  await db.pages.update(url, {
+    firstVisitTime: first,
+    lastVisitTime: last,
+    visitCount: remaining.length,
+  });
 }

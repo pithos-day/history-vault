@@ -115,7 +115,10 @@ describe('vault maintenance', () => {
     await deleteUrlFromVault(url, new Date(dayOne));
 
     expect(await db.visits.where('url').equals(url).count()).toBe(1);
-    expect(await db.pages.get(url)).toBeDefined();
+    const remainingPage = await db.pages.get(url);
+    expect(remainingPage?.visitCount).toBe(1);
+    expect(remainingPage?.firstVisitTime).toBe(dayTwo);
+    expect(remainingPage?.lastVisitTime).toBe(dayTwo);
   });
 
   it('removes a whole day and cleans up orphan pages', async () => {

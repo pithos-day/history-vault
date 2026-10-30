@@ -70,6 +70,7 @@ export function EntryRow({ entry, onOpen, onContextMenu }: EntryRowProps) {
       onClick={() => onOpen(entry.url)}
       onContextMenu={(event) => {
         event.preventDefault();
+        event.stopPropagation();
         onContextMenu(entry, event);
       }}
       type="button"

@@ -12,14 +12,12 @@ import {
   waitForImportLockRelease,
 } from '@/utils/history/import';
 import { clearVaultData, deleteDayFromVault, deleteUrlFromVault } from '@/utils/history/query';
-import { reconcileRecent } from '@/utils/history/reconcile';
 import type { ImportState } from '@/utils/history/types';
 import type { VaultRequest } from '@/utils/messages';
 import { isVaultRequest } from '@/utils/messages';
 import { ensureDefaultSettings, getSettings } from '@/utils/settings';
 
 const IMPORT_ALARM = 'history-vault-import';
-const RECONCILE_ALARM = 'history-vault-reconcile';
 
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(({ reason }) => {
@@ -88,21 +86,12 @@ async function handleStartup(): Promise<void> {
 
   const state = await ensureImportStarted();
   await syncBadge(state);
-
-  void reconcileRecent(7).catch((error) => {
-    console.error('History Vault: startup reconcile failed', error);
-  });
 }
 
 async function handleAlarm(name: string): Promise<void> {
   if (name === IMPORT_ALARM) {
     const state = await runImportBatch();
     await syncBadge(state);
-    return;
-  }
-
-  if (name === RECONCILE_ALARM) {
-    await reconcileRecent(2);
   }
 }
 
@@ -159,7 +148,6 @@ async function handleRequest(request: VaultRequest): Promise<{ ok: true }> {
 
 async function ensureAlarms(): Promise<void> {
   await browser.alarms.create(IMPORT_ALARM, { periodInMinutes: 1 });
-  await browser.alarms.create(RECONCILE_ALARM, { periodInMinutes: 30 });
 }
 
 async function syncBadge(state: ImportState): Promise<void> {
