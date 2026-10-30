@@ -1,7 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { MetaRecord, PageRecord, VisitRecord } from './history/types';
 
-export class HistoryVaultDatabase extends Dexie {
+class HistoryVaultDatabase extends Dexie {
   pages!: EntityTable<PageRecord, 'url'>;
   visits!: EntityTable<VisitRecord, 'id'>;
   meta!: EntityTable<MetaRecord, 'key'>;

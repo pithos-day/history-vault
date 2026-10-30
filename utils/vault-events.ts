@@ -1,7 +1,7 @@
 import type { Browser } from 'wxt/browser';
 import { browser } from 'wxt/browser';
 
-export const VAULT_REVISION_KEY = 'vaultRevision';
+const VAULT_REVISION_KEY = 'vaultRevision';
 
 export async function bumpVaultRevision(): Promise<void> {
   await browser.storage.local.set({ [VAULT_REVISION_KEY]: Date.now() });

@@ -34,7 +34,7 @@ export function isVaultRequest(value: unknown): value is VaultRequest {
   }
 }
 
-export function isVaultResponse(value: unknown): value is VaultResponse {
+function isVaultResponse(value: unknown): value is VaultResponse {
   if (typeof value !== 'object' || value === null) return false;
   const response = value as { ok?: unknown; error?: unknown };
   return response.ok === true || (response.ok === false && typeof response.error === 'string');

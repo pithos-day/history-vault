@@ -7,7 +7,7 @@ import { getVaultEpoch } from './epoch';
 import type { ImportState } from './types';
 
 export const IMPORT_STATE_KEY = 'importState';
-export const IMPORT_LOCK_KEY = 'importLock';
+const IMPORT_LOCK_KEY = 'importLock';
 
 const DAY_MS = 86_400_000;
 const MAX_DAYS = 3650;
@@ -203,11 +203,6 @@ export async function waitForImportLockRelease(timeoutMs = 5000): Promise<boolea
   }
 
   return false;
-}
-
-export async function resetImportState(): Promise<void> {
-  await saveImportState(defaultImportState());
-  await releaseImportLock('');
 }
 
 export async function saveImportState(state: ImportState): Promise<void> {

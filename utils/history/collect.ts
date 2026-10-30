@@ -89,7 +89,7 @@ export async function ingestHistoryItem(
   return { insertedVisits: written, page };
 }
 
-export async function getVisitsSafe(url: string): Promise<Browser.history.VisitItem[]> {
+async function getVisitsSafe(url: string): Promise<Browser.history.VisitItem[]> {
   try {
     return await browser.history.getVisits({ url });
   } catch {

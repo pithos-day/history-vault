@@ -5,7 +5,7 @@ import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
 import type { DayEntries, EntryGroup, PageRecord, RangeStats, VisitRecord } from './types';
 
-export async function getVisitsBetween(start: number, end: number): Promise<VisitRecord[]> {
+async function getVisitsBetween(start: number, end: number): Promise<VisitRecord[]> {
   return db.visits.where('visitedAt').between(start, end, true, false).toArray();
 }
 

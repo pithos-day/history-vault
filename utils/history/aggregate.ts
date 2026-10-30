@@ -133,7 +133,7 @@ function buildHourlySeries(day: MutableDay | undefined, start: number): Activity
   }));
 }
 
-export function toTopDomains(domains: Map<string, number>, limit: number): DomainCount[] {
+function toTopDomains(domains: Map<string, number>, limit: number): DomainCount[] {
   return [...domains.entries()]
     .map(([host, count]) => ({ host, count }))
     .sort((left, right) => right.count - left.count || left.host.localeCompare(right.host))

@@ -1,4 +1,4 @@
-import { dayKey, parseDayKey, startOfDay } from '../date';
+import { parseDayKey, startOfDay } from '../date';
 import { db } from '../db';
 import type { PageRecord, SearchResult } from './types';
 
@@ -99,10 +99,6 @@ export function getHighlightParts(
 
   if (cursor < text.length) parts.push({ text: text.slice(cursor), match: false });
   return parts;
-}
-
-export function resultDayKey(result: SearchResult): string {
-  return dayKey(result.latestVisitTime);
 }
 
 function matchesPage(page: PageRecord, parsed: ParsedSearch): boolean {

@@ -1,4 +1,4 @@
-export const UI_LOCALE = 'ja-JP';
+const UI_LOCALE = 'ja-JP';
 
 const monthLabelFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
   year: 'numeric',
@@ -108,18 +108,9 @@ export function isSameMonth(a: Date | number, b: Date | number): boolean {
   return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
 }
 
-export function isToday(input: Date | number): boolean {
-  return isSameDay(input, Date.now());
-}
-
 export function dayKey(input: Date | number): string {
   const date = new Date(input);
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-export function monthKey(input: Date | number): string {
-  const date = new Date(input);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
 }
 
 export function parseDayKey(value: string): Date | null {
@@ -138,7 +129,7 @@ export function parseDayKey(value: string): Date | null {
   return date;
 }
 
-export function daysInMonth(input: Date | number): number {
+function daysInMonth(input: Date | number): number {
   const date = new Date(input);
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
@@ -166,7 +157,7 @@ export function formatRelativeDateHeader(input: Date | number): string {
   return formatDateHeader(input);
 }
 
-export function formatNumericDate(input: Date | number): string {
+function formatNumericDate(input: Date | number): string {
   return numericDateFormatter.format(new Date(input));
 }
 

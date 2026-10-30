@@ -2,7 +2,7 @@ import type { Browser } from 'wxt/browser';
 import { browser } from 'wxt/browser';
 
 export type ThemeSetting = 'system' | 'light' | 'dark';
-export type WeekStart = 0 | 1;
+type WeekStart = 0 | 1;
 
 export interface Settings {
   mirrorBrowserDeletes: boolean;
@@ -12,7 +12,7 @@ export interface Settings {
   onboardingDone: boolean;
 }
 
-export const SETTINGS_KEY = 'settings';
+const SETTINGS_KEY = 'settings';
 
 export const DEFAULT_SETTINGS: Settings = {
   mirrorBrowserDeletes: false,

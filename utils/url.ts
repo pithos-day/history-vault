@@ -22,10 +22,6 @@ export function getHost(url: string): string {
   }
 }
 
-export function getDisplayHost(host: string): string {
-  return host || '不明なサイト';
-}
-
 export function getHostInitial(host: string): string {
   const label = host.replace(/^www\./, '').replace(/^ローカルファイル$/, 'FILE');
   return (label[0] ?? '?').toUpperCase();
@@ -46,15 +42,6 @@ export function getFaviconUrl(url: string, size = 32): string | null {
 
 export function getHostUrl(host: string): string {
   return host.startsWith('http://') || host.startsWith('https://') ? host : `https://${host}/`;
-}
-
-export function isHttpUrl(value: string): boolean {
-  try {
-    const protocol = new URL(value).protocol;
-    return protocol === 'http:' || protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 export function getDisplayUrl(value: string): string {

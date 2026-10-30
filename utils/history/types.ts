@@ -94,7 +94,7 @@ export interface SearchResult {
   count: number;
 }
 
-export type ImportPhase = 'idle' | 'running' | 'done' | 'error';
+type ImportPhase = 'idle' | 'running' | 'done' | 'error';
 
 export interface ImportState {
   phase: ImportPhase;

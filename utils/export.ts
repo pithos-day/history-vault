@@ -3,7 +3,7 @@ import { db } from './db';
 import type { PageRecord, VisitRecord } from './history/types';
 import { bumpVaultRevision } from './vault-events';
 
-export interface VaultExport {
+interface VaultExport {
   format: 'history-vault';
   version: 1;
   exportedAt: string;
@@ -11,7 +11,7 @@ export interface VaultExport {
   visits: VisitRecord[];
 }
 
-export async function serializeVault(): Promise<string> {
+async function serializeVault(): Promise<string> {
   const [pages, visits] = await Promise.all([db.pages.toArray(), db.visits.toArray()]);
   const payload: VaultExport = {
     format: 'history-vault',
@@ -55,7 +55,7 @@ export async function downloadVaultCsv(): Promise<void> {
   );
 }
 
-export async function importVaultJson(
+async function importVaultJson(
   text: string,
   onProgress?: (processed: number, total: number) => void,
 ): Promise<{ pages: number; visits: number }> {
@@ -90,7 +90,7 @@ export async function importVaultFile(
   return importVaultJson(await file.text(), onProgress);
 }
 
-export function isVaultExport(value: unknown): value is VaultExport {
+function isVaultExport(value: unknown): value is VaultExport {
   if (typeof value !== 'object' || value === null) return false;
   const payload = value as Partial<VaultExport>;
   return (
