@@ -63,7 +63,7 @@ export function endOfDay(input: Date | number): Date {
   return addDays(startOfDay(input), 1);
 }
 
-export function endOfMonth(input: Date | number): Date {
+function endOfMonth(input: Date | number): Date {
   return addMonths(startOfMonth(input), 1);
 }
 
@@ -98,10 +98,6 @@ export function getMonthGrid(input: Date | number, weekStartsOn: 0 | 1 = 0): Dat
   return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
 }
 
-export function isSameDay(a: Date | number, b: Date | number): boolean {
-  return dayKey(a) === dayKey(b);
-}
-
 export function isSameMonth(a: Date | number, b: Date | number): boolean {
   const left = new Date(a);
   const right = new Date(b);
@@ -111,6 +107,11 @@ export function isSameMonth(a: Date | number, b: Date | number): boolean {
 export function dayKey(input: Date | number): string {
   const date = new Date(input);
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function monthKey(input: Date | number): string {
+  const date = new Date(input);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
 }
 
 export function parseDayKey(value: string): Date | null {

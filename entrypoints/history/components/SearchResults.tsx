@@ -1,12 +1,7 @@
 import { type MouseEvent, useMemo } from 'react';
-import { dayKey, formatCount, formatRelativeDateHeader } from '@/utils/date';
-import type { EntryGroup, SearchResult } from '@/utils/history/types';
-import { EntryRow } from './EntriesPanel';
-import { VirtualList } from './VirtualList';
-
-type SearchRow =
-  | { type: 'header'; date: string; start: number; total: number }
-  | { type: 'entry'; entry: EntryGroup };
+import { dayKey, formatCount, startOfDay } from '@/utils/date';
+import type { DayEntries, EntryGroup, SearchResult } from '@/utils/history/types';
+import { GroupedHistoryList } from './GroupedHistoryList';
 
 interface SearchResultsProps {
   query: string;
@@ -23,7 +18,7 @@ export function SearchResults({
   onOpen,
   onContextMenu,
 }: SearchResultsProps) {
-  const rows = useMemo(() => flattenResults(results), [results]);
+  const days = useMemo(() => resultsToDays(results), [results]);
 
   return (
     <section aria-label="検索結果" className="search-results">
@@ -34,59 +29,43 @@ export function SearchResults({
         </div>
       </header>
 
-      <VirtualList
-        empty={<span>{loading ? '検索中…' : '一致する履歴がありません。'}</span>}
-        estimateSize={(index) => (rows[index]?.type === 'header' ? 38 : 50)}
-        getKey={(row) =>
-          row.type === 'header' ? `header-${row.date}` : `${row.entry.url}-${row.entry.latestVisit}`
-        }
-        items={rows}
-        renderItem={(row) =>
-          row.type === 'header' ? (
-            <div className="list-date-header">
-              <span>{formatRelativeDateHeader(row.start)}</span>
-              <span className="count-badge">{formatCount(row.total)}</span>
-            </div>
-          ) : (
-            <EntryRow entry={row.entry} onContextMenu={onContextMenu} onOpen={onOpen} />
-          )
-        }
+      <GroupedHistoryList
+        ariaLabel="検索結果の履歴"
+        days={days}
+        emptyText={loading ? '検索中…' : '一致する履歴がありません。'}
+        loading={loading}
+        onContextMenu={onContextMenu}
+        onOpen={onOpen}
       />
     </section>
   );
 }
 
-function flattenResults(results: SearchResult[]): SearchRow[] {
-  const groups = new Map<string, { start: number; entries: EntryGroup[] }>();
+function resultsToDays(results: SearchResult[]): DayEntries[] {
+  const groups = new Map<string, DayEntries>();
 
   for (const result of results) {
-    const key = dayKey(result.latestVisitTime);
-    const group = groups.get(key) ?? { start: result.latestVisitTime, entries: [] };
-    group.entries.push({
+    const date = dayKey(result.latestVisitTime);
+    const day = groups.get(date) ?? {
+      date,
+      start: startOfDay(result.latestVisitTime).getTime(),
+      entries: [],
+    };
+    day.entries.push({
       url: result.page.url,
-      title: result.page.title || result.page.url,
+      title: result.page.title,
       host: result.page.host,
       latestVisit: result.latestVisitTime,
       count: result.count,
       transition: 'link',
     });
-    groups.set(key, group);
+    groups.set(date, day);
   }
 
-  const rows: SearchRow[] = [];
-  for (const [date, group] of [...groups.entries()].sort(([left], [right]) =>
-    right.localeCompare(left),
-  )) {
-    rows.push({
-      type: 'header',
-      date,
-      start: group.start,
-      total: group.entries.reduce((sum, entry) => sum + entry.count, 0),
-    });
-    for (const entry of group.entries.sort((left, right) => right.latestVisit - left.latestVisit)) {
-      rows.push({ type: 'entry', entry });
-    }
-  }
-
-  return rows;
+  return [...groups.values()]
+    .sort((left, right) => right.date.localeCompare(left.date))
+    .map((day) => ({
+      ...day,
+      entries: day.entries.sort((left, right) => right.latestVisit - left.latestVisit),
+    }));
 }

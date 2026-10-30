@@ -1,36 +1,29 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import {
-  addDays,
   addMonths,
   clampDateToMonth,
   dayKey,
   formatDateHeader,
   formatDateRange,
-  formatMonthLabel,
-  getDayRange,
   getMonthRange,
-  getWeekRange,
-  startOfWeek,
+  isSameMonth,
+  startOfMonth,
 } from '@/utils/date';
 import type { EntryGroup } from '@/utils/history/types';
 import { sendVaultMessage } from '@/utils/messages';
 import { isSupportedUrl } from '@/utils/url';
+import { CalendarSidebar } from './components/CalendarSidebar';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ContextMenu } from './components/ContextMenu';
-import { DateRail } from './components/DateRail';
-import { DayView } from './components/DayView';
-import { EntriesPanel } from './components/EntriesPanel';
+import { GroupedHistoryList } from './components/GroupedHistoryList';
 import { ImportBanner } from './components/ImportBanner';
-import { ListView } from './components/ListView';
-import { MonthCalendar } from './components/MonthCalendar';
 import { SearchResults } from './components/SearchResults';
 import { SettingsDialog } from './components/SettingsDialog';
 import { StatsPanel } from './components/StatsPanel';
 import { TopBar } from './components/TopBar';
-import { WeekView } from './components/WeekView';
 import { WelcomeDialog } from './components/WelcomeDialog';
-import { useDayEntries } from './hooks/useDayEntries';
+import { useCalendarActivity } from './hooks/useCalendarActivity';
 import { useEntriesInRange } from './hooks/useEntriesInRange';
 import { useImportRunner } from './hooks/useImportRunner';
 import { useImportState } from './hooks/useImportState';
@@ -39,8 +32,11 @@ import { useResolvedTheme } from './hooks/useResolvedTheme';
 import { useSearch } from './hooks/useSearch';
 import { useSettings } from './hooks/useSettings';
 import { useVaultCounts } from './hooks/useVaultCounts';
+import { useVaultDateBounds } from './hooks/useVaultDateBounds';
 import { useVaultRevision } from './hooks/useVaultRevision';
-import { loadViewState, saveViewState, type ViewMode, type ViewState } from './lib/viewState';
+import { loadViewState, saveViewState, type ViewState } from './lib/viewState';
+
+const MAX_CALENDAR_MONTHS = 24;
 
 interface ConfirmState {
   title: string;
@@ -79,55 +75,42 @@ export default function App() {
 
   const selectedTime = viewState.selectedDate;
   const selectedDate = useMemo(() => new Date(selectedTime), [selectedTime]);
-  const weekStartsOn = settings.weekStartsOn;
-
-  const range = useMemo(() => {
-    switch (viewState.view) {
-      case 'day':
-        return getDayRange(selectedDate);
-      case 'week':
-        return getWeekRange(selectedDate, weekStartsOn);
-      default:
-        return getMonthRange(selectedDate);
-    }
-  }, [selectedDate, viewState.view, weekStartsOn]);
-
-  const weekStart = useMemo(
-    () => startOfWeek(selectedDate, weekStartsOn),
-    [selectedDate, weekStartsOn],
-  );
-
+  const range = useMemo(() => getMonthRange(selectedDate), [selectedDate]);
   const searching = query.trim().length > 0;
   const showWelcome = welcomeOpen || (loaded && !settings.onboardingDone);
-  const statsEnabled = !searching && (viewState.view !== 'list' || viewState.statsVisible);
+
   const { stats, loading: statsLoading } = useRangeStats(
     range.start,
     range.end,
-    viewState.view === 'day' ? 'hour' : 'day',
+    'day',
     revision,
-    statsEnabled,
+    !searching && viewState.statsVisible,
   );
-  const { entries, loading: entriesLoading } = useDayEntries(selectedDate, revision);
   const { days: listDays, loading: listLoading } = useEntriesInRange(
     range.start,
     range.end,
     revision,
-    viewState.view === 'list' && !searching,
+    !searching,
   );
   const { results, loading: searchLoading } = useSearch(query, revision);
-
-  const daysMap = useMemo(
-    () => new Map((stats?.days ?? []).map((day) => [day.date, day])),
-    [stats],
+  const bounds = useVaultDateBounds(revision);
+  const calendarMonths = useMemo(
+    () => buildCalendarMonths(bounds, selectedDate),
+    [bounds, selectedDate],
   );
+  const calendarRange = useMemo(() => {
+    const first = getMonthRange(calendarMonths[0] ?? selectedDate);
+    const last = getMonthRange(calendarMonths[calendarMonths.length - 1] ?? selectedDate);
+    return { start: first.start, end: last.end };
+  }, [calendarMonths, selectedDate]);
+  const calendarActivity = useCalendarActivity(calendarRange.start, calendarRange.end, revision);
+  const calendarMaxViews = useMemo(() => {
+    let max = 0;
+    for (const day of calendarActivity.values()) max = Math.max(max, day.views);
+    return max;
+  }, [calendarActivity]);
 
-  const title = searching
-    ? '検索結果'
-    : viewState.view === 'week'
-      ? formatDateRange(range.start, range.end)
-      : viewState.view === 'day'
-        ? formatDateHeader(selectedDate)
-        : formatMonthLabel(selectedDate);
+  const title = searching ? '検索結果' : formatDateRange(range.start, range.end);
 
   useEffect(() => {
     saveViewState(viewState);
@@ -203,27 +186,17 @@ export default function App() {
     setViewState((current) => ({ ...current, selectedDate: date.getTime() }));
   }, []);
 
-  const handleViewChange = useCallback((view: ViewMode) => {
-    setViewState((current) => ({ ...current, view }));
-  }, []);
-
   const handlePrevious = useCallback(() => {
     setViewState((current) => ({
       ...current,
-      selectedDate:
-        current.view === 'month' || current.view === 'list'
-          ? shiftMonth(new Date(current.selectedDate), -1).getTime()
-          : addDays(current.selectedDate, current.view === 'week' ? -7 : -1).getTime(),
+      selectedDate: shiftMonth(new Date(current.selectedDate), -1).getTime(),
     }));
   }, []);
 
   const handleNext = useCallback(() => {
     setViewState((current) => ({
       ...current,
-      selectedDate:
-        current.view === 'month' || current.view === 'list'
-          ? shiftMonth(new Date(current.selectedDate), 1).getTime()
-          : addDays(current.selectedDate, current.view === 'week' ? 7 : 1).getTime(),
+      selectedDate: shiftMonth(new Date(current.selectedDate), 1).getTime(),
     }));
   }, []);
 
@@ -248,7 +221,7 @@ export default function App() {
       setContextMenu(null);
       setConfirmState({
         title: '履歴を削除',
-        message: `「${entry.title}」をVaultから削除しますか？この操作は元に戻せません。`,
+        message: `「${entry.title}」を${formatDateHeader(entry.latestVisit)}のVault履歴から削除しますか？この操作は元に戻せません。`,
         confirmLabel: '削除',
         danger: true,
         action: async () => {
@@ -335,12 +308,10 @@ export default function App() {
         onToday={handleToday}
         onToggleCalendar={handleToggleCalendar}
         onToggleStats={handleToggleStats}
-        onViewChange={handleViewChange}
         query={query}
         searchInputRef={searchInputRef}
         statsVisible={viewState.statsVisible}
         title={title}
-        view={viewState.view}
       />
 
       {!dismissedImport ? (
@@ -351,101 +322,52 @@ export default function App() {
         />
       ) : null}
 
-      {searching ? (
-        <SearchResults
-          loading={searchLoading}
-          onContextMenu={handleContextMenu}
-          onOpen={handleOpen}
-          query={query.trim()}
-          results={results}
-        />
-      ) : (
-        <div className={`content ${viewState.statsVisible ? '' : 'no-stats'}`}>
-          <main className="main-pane">
-            {viewState.view === 'month' ? (
-              <div className={`workspace ${viewState.calendarVisible ? '' : 'calendar-hidden'}`}>
-                {viewState.calendarVisible ? (
-                  <MonthCalendar
-                    days={daysMap}
-                    maxViews={stats?.maxViews ?? 0}
-                    month={selectedDate}
-                    onSelect={handleSelectDate}
-                    selectedDate={selectedDate}
-                    theme={theme}
-                    weekStartsOn={weekStartsOn}
-                  />
-                ) : (
-                  <DateRail
-                    days={daysMap}
-                    month={selectedDate}
-                    onSelect={handleSelectDate}
-                    selectedDate={selectedDate}
-                  />
-                )}
-                <EntriesPanel
-                  date={selectedDate}
-                  entries={entries}
-                  loading={entriesLoading}
-                  onContextMenu={handleContextMenu}
-                  onDeleteDay={handleDeleteDay}
-                  onOpen={handleOpen}
-                />
-              </div>
+      <div className={`content ${viewState.statsVisible && !searching ? '' : 'no-stats'}`}>
+        <main className="main-pane">
+          <div className={`workspace ${viewState.calendarVisible ? '' : 'calendar-hidden'}`}>
+            {viewState.calendarVisible ? (
+              <CalendarSidebar
+                activity={calendarActivity}
+                maxViews={calendarMaxViews}
+                months={calendarMonths}
+                onSelect={handleSelectDate}
+                selectedDate={selectedDate}
+                theme={theme}
+                weekStartsOn={settings.weekStartsOn}
+              />
             ) : null}
 
-            {viewState.view === 'week' ? (
-              <div className="workspace">
-                <WeekView
-                  days={daysMap}
-                  maxViews={stats?.maxViews ?? 0}
-                  onSelect={handleSelectDate}
-                  selectedDate={selectedDate}
-                  theme={theme}
-                  weekStart={weekStart}
-                />
-                <EntriesPanel
-                  date={selectedDate}
-                  entries={entries}
-                  loading={entriesLoading}
-                  onContextMenu={handleContextMenu}
-                  onDeleteDay={handleDeleteDay}
-                  onOpen={handleOpen}
-                />
-              </div>
-            ) : null}
-
-            {viewState.view === 'day' ? (
-              <DayView
-                date={selectedDate}
-                entries={entries}
-                loading={entriesLoading}
+            {searching ? (
+              <SearchResults
+                loading={searchLoading}
+                onContextMenu={handleContextMenu}
+                onOpen={handleOpen}
+                query={query.trim()}
+                results={results}
+              />
+            ) : (
+              <GroupedHistoryList
+                ariaLabel="履歴リスト"
+                days={listDays}
+                emptyText="この月の履歴はありません。"
+                loading={listLoading}
                 onContextMenu={handleContextMenu}
                 onDeleteDay={handleDeleteDay}
                 onOpen={handleOpen}
-                stats={stats}
               />
-            ) : null}
+            )}
+          </div>
+        </main>
 
-            {viewState.view === 'list' ? (
-              <ListView
-                days={listDays}
-                loading={listLoading}
-                onContextMenu={handleContextMenu}
-                onOpen={handleOpen}
-              />
-            ) : null}
-          </main>
-
-          {viewState.statsVisible ? (
-            <StatsPanel
-              label={formatDateRange(range.start, range.end)}
-              loading={statsLoading}
-              onClose={handleToggleStats}
-              stats={stats}
-            />
-          ) : null}
-        </div>
-      )}
+        {viewState.statsVisible && !searching ? (
+          <StatsPanel
+            label={formatDateRange(range.start, range.end)}
+            loading={statsLoading}
+            onClose={handleToggleStats}
+            stats={stats}
+          />
+        ) : null}
+      </div>
 
       {contextMenu ? (
         <ContextMenu
@@ -509,4 +431,24 @@ function hasWelcomeParam(): boolean {
 function shiftMonth(date: Date, delta: number): Date {
   const shifted = addMonths(date, delta);
   return clampDateToMonth(new Date(shifted.getFullYear(), shifted.getMonth(), date.getDate()));
+}
+
+function buildCalendarMonths(
+  bounds: { earliest: number; latest: number } | null,
+  selectedDate: Date,
+): Date[] {
+  const selected = selectedDate.getTime();
+  const first = startOfMonth(Math.min(bounds?.earliest ?? selected, selected));
+  const last = startOfMonth(Math.max(bounds?.latest ?? selected, selected));
+  const months: Date[] = [];
+
+  for (let cursor = first; cursor.getTime() <= last.getTime(); cursor = addMonths(cursor, 1)) {
+    months.push(cursor);
+  }
+
+  if (months.length <= MAX_CALENDAR_MONTHS) return months;
+
+  const selectedIndex = months.findIndex((month) => isSameMonth(month, selectedDate));
+  const startIndex = Math.max(0, Math.min(months.length - MAX_CALENDAR_MONTHS, selectedIndex - 11));
+  return months.slice(startIndex, startIndex + MAX_CALENDAR_MONTHS);
 }

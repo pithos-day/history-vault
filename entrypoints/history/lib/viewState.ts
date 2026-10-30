@@ -1,7 +1,4 @@
-export type ViewMode = 'month' | 'week' | 'day' | 'list';
-
 export interface ViewState {
-  view: ViewMode;
   selectedDate: number;
   calendarVisible: boolean;
   statsVisible: boolean;
@@ -11,10 +8,9 @@ const STORAGE_KEY = 'history-vault:view-state';
 
 export function defaultViewState(): ViewState {
   return {
-    view: 'month',
     selectedDate: Date.now(),
     calendarVisible: true,
-    statsVisible: true,
+    statsVisible: false,
   };
 }
 
@@ -23,8 +19,21 @@ export function loadViewState(): ViewState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultViewState();
     const parsed: unknown = JSON.parse(raw);
-    if (!isViewState(parsed)) return defaultViewState();
-    return parsed;
+    if (!isRecord(parsed)) return defaultViewState();
+
+    const selectedDate = typeof parsed.selectedDate === 'number' ? parsed.selectedDate : Date.now();
+    const calendarVisible =
+      typeof parsed.calendarVisible === 'boolean' ? parsed.calendarVisible : true;
+    // Older versions stored a view mode and defaulted the stats panel to open.
+    // The list+calendar layout now starts with the panel closed.
+    const statsVisible =
+      'view' in parsed
+        ? false
+        : typeof parsed.statsVisible === 'boolean'
+          ? parsed.statsVisible
+          : false;
+
+    return { selectedDate, calendarVisible, statsVisible };
   } catch {
     return defaultViewState();
   }
@@ -38,16 +47,6 @@ export function saveViewState(state: ViewState): void {
   }
 }
 
-function isViewState(value: unknown): value is ViewState {
-  if (typeof value !== 'object' || value === null) return false;
-  const state = value as Partial<ViewState>;
-  return (
-    (state.view === 'month' ||
-      state.view === 'week' ||
-      state.view === 'day' ||
-      state.view === 'list') &&
-    typeof state.selectedDate === 'number' &&
-    typeof state.calendarVisible === 'boolean' &&
-    typeof state.statsVisible === 'boolean'
-  );
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }

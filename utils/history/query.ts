@@ -3,7 +3,14 @@ import { db } from '../db';
 import { bumpVaultRevision } from '../vault-events';
 import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
-import type { DayEntries, EntryGroup, PageRecord, RangeStats, VisitRecord } from './types';
+import type {
+  CalendarDayActivity,
+  DayEntries,
+  EntryGroup,
+  PageRecord,
+  RangeStats,
+  VisitRecord,
+} from './types';
 
 async function getVisitsBetween(start: number, end: number): Promise<VisitRecord[]> {
   return db.visits.where('visitedAt').between(start, end, true, false).toArray();
@@ -16,12 +23,6 @@ export async function getRangeStats(
 ): Promise<RangeStats> {
   const visits = await getVisitsBetween(start, end);
   return aggregateVisits(visits, start, end, granularity);
-}
-
-export async function getDayEntries(input: Date | number): Promise<DayEntries> {
-  const range = getDayRange(input);
-  const days = await getEntriesInRange(range.start, range.end);
-  return days[0] ?? { date: dayKey(input), start: range.start, entries: [] };
 }
 
 export async function getEntriesInRange(start: number, end: number): Promise<DayEntries[]> {
@@ -81,6 +82,39 @@ export async function getEntriesInRange(start: number, end: number): Promise<Day
 
 export async function getRecentPages(limit = 8): Promise<PageRecord[]> {
   return db.pages.orderBy('lastVisitTime').reverse().limit(limit).toArray();
+}
+
+export async function getVaultDateBounds(): Promise<{ earliest: number; latest: number } | null> {
+  const [first, last] = await Promise.all([
+    db.visits.orderBy('visitedAt').first(),
+    db.visits.orderBy('visitedAt').last(),
+  ]);
+
+  if (!first || !last) return null;
+  return { earliest: first.visitedAt, latest: last.visitedAt };
+}
+
+export async function getCalendarActivity(
+  start: number,
+  end: number,
+): Promise<Map<string, CalendarDayActivity>> {
+  const visits = await getVisitsBetween(start, end);
+  const days = new Map<string, { views: number; pages: Set<string> }>();
+
+  for (const visit of visits) {
+    const key = dayKey(visit.visitedAt);
+    let day = days.get(key);
+    if (!day) {
+      day = { views: 0, pages: new Set() };
+      days.set(key, day);
+    }
+    day.views += 1;
+    day.pages.add(visit.url);
+  }
+
+  return new Map(
+    [...days.entries()].map(([key, day]) => [key, { views: day.views, pages: day.pages.size }]),
+  );
 }
 
 export async function getVaultCounts(): Promise<{ pages: number; visits: number }> {

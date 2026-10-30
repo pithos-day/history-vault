@@ -1,10 +1,10 @@
-import { formatCount, formatDateHeader } from '@/utils/date';
-import type { DayStats } from '@/utils/history/types';
+import { formatDateHeader } from '@/utils/date';
 import { getHeatColor } from '../lib/heat';
 
 interface DayCellProps {
   date: Date;
-  stats: DayStats | undefined;
+  views: number;
+  pages: number;
   selected: boolean;
   currentMonth: boolean;
   maxViews: number;
@@ -14,15 +14,14 @@ interface DayCellProps {
 
 export function DayCell({
   date,
-  stats,
+  views,
+  pages,
   selected,
   currentMonth,
   maxViews,
   theme,
   onSelect,
 }: DayCellProps) {
-  const views = stats?.views ?? 0;
-  const pages = stats?.pages ?? 0;
   const classes = [
     'day-cell-wrap',
     currentMonth ? '' : 'is-outside',
@@ -31,33 +30,20 @@ export function DayCell({
   ]
     .filter(Boolean)
     .join(' ');
+  const label = `${formatDateHeader(date)}${views > 0 ? `、${views}閲覧、${pages}ページ` : ''}`;
 
   return (
     <div className={classes}>
       <button
-        aria-label={`${formatDateHeader(date)}${views > 0 ? `、${views}閲覧、${pages}ページ` : ''}`}
+        aria-label={label}
         aria-pressed={selected}
         className="day-cell"
         onClick={() => onSelect(date)}
         style={{ backgroundColor: getHeatColor(views, maxViews, theme) }}
+        title={label}
         type="button"
       >
         <span className="day-number">{date.getDate()}</span>
-        {stats && stats.views > 0 ? (
-          <>
-            <span className="day-counts">
-              <strong>{formatCount(stats.views)} 閲覧</strong>
-              <span>{formatCount(stats.pages)} ページ</span>
-            </span>
-            <span className="day-domains">
-              {stats.topDomains.map((domain) => (
-                <span className="day-domain" key={domain.host} title={domain.host}>
-                  {domain.host}
-                </span>
-              ))}
-            </span>
-          </>
-        ) : null}
       </button>
     </div>
   );

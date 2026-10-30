@@ -8,15 +8,12 @@ import {
   SearchIcon,
   SettingsIcon,
 } from '../lib/icons';
-import type { ViewMode } from '../lib/viewState';
 
 interface TopBarProps {
   query: string;
   onQueryChange: (value: string) => void;
   searchInputRef: RefObject<HTMLInputElement | null>;
   title: string;
-  view: ViewMode;
-  onViewChange: (view: ViewMode) => void;
   onPrevious: () => void;
   onNext: () => void;
   onToday: () => void;
@@ -27,20 +24,11 @@ interface TopBarProps {
   onOpenSettings: () => void;
 }
 
-const VIEWS: Array<{ value: ViewMode; label: string }> = [
-  { value: 'list', label: 'リスト' },
-  { value: 'day', label: '日' },
-  { value: 'week', label: '週' },
-  { value: 'month', label: '月' },
-];
-
 export function TopBar({
   query,
   onQueryChange,
   searchInputRef,
   title,
-  view,
-  onViewChange,
   onPrevious,
   onNext,
   onToday,
@@ -94,7 +82,7 @@ export function TopBar({
 
       <div className="topbar-right">
         <button className="pill-button" onClick={onToday} type="button">
-          今月
+          今日
         </button>
         <div className="nav-buttons">
           <button aria-label="前へ" className="icon-button" onClick={onPrevious} type="button">
@@ -103,20 +91,6 @@ export function TopBar({
           <button aria-label="次へ" className="icon-button" onClick={onNext} type="button">
             <ChevronRightIcon />
           </button>
-        </div>
-
-        <div className="segmented">
-          {VIEWS.map((item) => (
-            <button
-              aria-pressed={view === item.value}
-              className={`segmented-button ${view === item.value ? 'is-active' : ''}`}
-              key={item.value}
-              onClick={() => onViewChange(item.value)}
-              type="button"
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
 
         <button

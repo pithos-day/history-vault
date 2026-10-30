@@ -94,6 +94,11 @@ export interface SearchResult {
   count: number;
 }
 
+export interface CalendarDayActivity {
+  views: number;
+  pages: number;
+}
+
 type ImportPhase = 'idle' | 'running' | 'done' | 'error';
 
 export interface ImportState {
