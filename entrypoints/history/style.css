@@ -386,10 +386,6 @@ button {
   grid-template-columns: 190px minmax(0, 1fr);
 }
 
-.workspace.calendar-hidden .entries-panel {
-  border-left: 0;
-}
-
 /* Calendar */
 
 .calendar {
@@ -584,6 +580,15 @@ button {
   flex-direction: column;
   border-left: 1px solid var(--border);
   background: var(--surface);
+}
+
+.day-entries .entries-panel {
+  flex: 1;
+  border-left: 0;
+}
+
+.workspace.calendar-hidden .entries-panel {
+  border-left: 0;
 }
 
 .panel-header {
@@ -1073,11 +1078,6 @@ button {
   min-height: 0;
 }
 
-.day-entries .entries-panel {
-  flex: 1;
-  border-left: 0;
-}
-
 /* List & search */
 
 .list-view,
@@ -1546,8 +1546,11 @@ button {
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override component transitions */
     scroll-behavior: auto !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override component transitions */
     transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must override component transitions */
     animation-duration: 0.01ms !important;
   }
 }
