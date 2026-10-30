@@ -10,6 +10,10 @@ import type { PageRecord, VisitRecord } from './types';
 interface IngestOptions {
   source?: VisitRecord['source'];
   notify?: boolean;
+  /** Inclusive lower bound for visits (used by windowed imports). */
+  since?: number;
+  /** Exclusive upper bound for visits (used by windowed imports). */
+  until?: number;
   /**
    * Import batches capture the vault generation up front. If the vault is
    * cleared while a batch is in flight, the write transaction refuses to
@@ -33,7 +37,11 @@ export async function ingestHistoryItem(
   const host = getHost(url);
   const existingPage = await db.pages.get(url);
   const visitItems = await getVisitsSafe(url);
-  const visits = toVisitRecords(url, host, visitItems, options.source ?? 'live');
+  const visits = toVisitRecords(url, host, visitItems, options.source ?? 'live').filter(
+    (visit) =>
+      (options.since === undefined || visit.visitedAt >= options.since) &&
+      (options.until === undefined || visit.visitedAt < options.until),
+  );
 
   if (visits.length === 0 && item.lastVisitTime) {
     visits.push({
@@ -67,7 +75,7 @@ export async function ingestHistoryItem(
     urlLower: normalizeSearchText(url),
     lastVisitTime: Math.max(latestVisit, item.lastVisitTime ?? 0),
     firstVisitTime: Number.isFinite(firstVisit) ? firstVisit : latestVisit,
-    visitCount: Math.max(existingPage?.visitCount ?? 0, item.visitCount ?? 0, visits.length),
+    visitCount: (existingPage?.visitCount ?? 0) + newVisits.length,
   };
 
   const written = await db.transaction('rw', db.pages, db.visits, db.meta, async () => {

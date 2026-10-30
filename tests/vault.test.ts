@@ -100,6 +100,32 @@ describe('vault maintenance', () => {
     expect(await db.pages.count()).toBe(1);
   });
 
+  it('imports only visits inside the requested window and counts stored visits', async () => {
+    const dayStart = new Date(2025, 8, 25).getTime();
+    const dayEnd = new Date(2025, 8, 26).getTime();
+    const url = 'https://example.com/window';
+
+    history.getVisits.mockResolvedValue([
+      { visitId: 'old', visitTime: dayStart - 86_400_000, transition: 'link' },
+      { visitId: 'new', visitTime: dayStart + 3_600_000, transition: 'link' },
+    ] as never);
+
+    const result = await ingestHistoryItem(
+      {
+        id: 'window',
+        url,
+        title: 'Window',
+        lastVisitTime: dayStart + 3_600_000,
+        visitCount: 2,
+      },
+      { source: 'import', notify: false, since: dayStart, until: dayEnd },
+    );
+
+    expect(result.insertedVisits).toBe(1);
+    expect(await db.visits.where('url').equals(url).count()).toBe(1);
+    expect((await db.pages.get(url))?.visitCount).toBe(1);
+  });
+
   it('updates a page title when a later ingest provides one', async () => {
     const item = {
       id: 'title-test',

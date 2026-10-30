@@ -239,7 +239,13 @@ async function processRange(
     const chunk = items.slice(index, index + 8);
     const results = await Promise.all(
       chunk.map((item) =>
-        ingestHistoryItem(item, { source: 'import', notify: false, expectedEpoch: epoch }),
+        ingestHistoryItem(item, {
+          source: 'import',
+          notify: false,
+          since: start,
+          until: end,
+          expectedEpoch: epoch,
+        }),
       ),
     );
     visits += results.reduce((total, result) => total + result.insertedVisits, 0);
