@@ -83,6 +83,7 @@ export function aggregateVisits(
     series,
     transitions: allTransitions,
     topDomains: toTopDomains(allDomains, 5),
+    domainCount: allDomains.size,
     maxViews,
   };
 }

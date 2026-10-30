@@ -69,6 +69,7 @@ export interface RangeStats {
   series: ActivityPoint[];
   transitions: TransitionCounts;
   topDomains: DomainCount[];
+  domainCount: number;
   maxViews: number;
 }
 

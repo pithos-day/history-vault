@@ -57,7 +57,8 @@ export async function startImport(
   const daysTotal =
     windowDays > 0 ? Math.max(1, Math.ceil((cursorEnd - windowStart) / DAY_MS)) : MAX_DAYS;
 
-  const state: ImportState = reset
+  const initialize = reset || current.phase === 'idle' || current.daysTotal === 0;
+  const state: ImportState = initialize
     ? {
         phase: 'running',
         startedAt: now,
@@ -239,7 +240,7 @@ async function releaseImportLock(owner: string): Promise<void> {
   await browser.storage.local.remove(IMPORT_LOCK_KEY);
 }
 
-function isImportState(value: unknown): value is ImportState {
+export function isImportState(value: unknown): value is ImportState {
   return (
     typeof value === 'object' &&
     value !== null &&
