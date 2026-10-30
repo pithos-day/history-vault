@@ -9,6 +9,7 @@ import {
   runImportBatch,
   saveImportState,
   startImport,
+  waitForImportLockRelease,
 } from '@/utils/history/import';
 import { clearVaultData, deleteDayFromVault, deleteUrlFromVault } from '@/utils/history/query';
 import { reconcileRecent } from '@/utils/history/reconcile';
@@ -113,14 +114,20 @@ async function handleVisitRemoved(removed: {
   if (!settings.mirrorBrowserDeletes) return;
 
   if (removed.allHistory) {
-    await clearVaultData();
-    await saveImportState({ ...defaultImportState(), phase: 'done' });
+    await clearVaultAndStopImport();
     return;
   }
 
   for (const url of removed.urls ?? []) {
     await deleteUrlFromVault(url);
   }
+}
+
+async function clearVaultAndStopImport(): Promise<void> {
+  await cancelImport();
+  await waitForImportLockRelease();
+  await clearVaultData();
+  await saveImportState({ ...defaultImportState(), phase: 'done' });
 }
 
 async function handleRequest(request: VaultRequest): Promise<{ ok: true }> {
@@ -137,9 +144,7 @@ async function handleRequest(request: VaultRequest): Promise<{ ok: true }> {
       return { ok: true };
     }
     case 'clear-vault': {
-      await cancelImport();
-      await clearVaultData();
-      await saveImportState({ ...defaultImportState(), phase: 'done' });
+      await clearVaultAndStopImport();
       return { ok: true };
     }
     case 'start-import': {

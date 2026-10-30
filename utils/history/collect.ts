@@ -3,12 +3,19 @@ import { browser } from 'wxt/browser';
 import { db } from '../db';
 import { getHost, isSupportedUrl } from '../url';
 import { bumpVaultRevision } from '../vault-events';
+import { getVaultEpoch } from './epoch';
 import { normalizeSearchText } from './search';
 import type { PageRecord, VisitRecord } from './types';
 
 interface IngestOptions {
   source?: VisitRecord['source'];
   notify?: boolean;
+  /**
+   * Import batches capture the vault generation up front. If the vault is
+   * cleared while a batch is in flight, the write transaction refuses to
+   * resurrect the deleted rows.
+   */
+  expectedEpoch?: number;
 }
 
 export interface IngestResult {
@@ -62,16 +69,24 @@ export async function ingestHistoryItem(
     visitCount: Math.max(existingPage?.visitCount ?? 0, item.visitCount ?? 0, visits.length),
   };
 
-  await db.transaction('rw', db.pages, db.visits, async () => {
+  const written = await db.transaction('rw', db.pages, db.visits, db.meta, async () => {
+    if (options.expectedEpoch !== undefined) {
+      const epoch = await getVaultEpoch();
+      if (epoch !== options.expectedEpoch) return null;
+    }
+
     await db.pages.put(page);
     if (newVisits.length > 0) await db.visits.bulkPut(newVisits);
+    return newVisits.length;
   });
 
-  if (newVisits.length > 0 && options.notify !== false) {
+  if (written === null) return { insertedVisits: 0, page: null };
+
+  if (written > 0 && options.notify !== false) {
     await bumpVaultRevision();
   }
 
-  return { insertedVisits: newVisits.length, page };
+  return { insertedVisits: written, page };
 }
 
 export async function getVisitsSafe(url: string): Promise<Browser.history.VisitItem[]> {

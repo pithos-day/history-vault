@@ -2,6 +2,7 @@ import { dayKey, getDayRange, startOfDay } from '../date';
 import { db } from '../db';
 import { bumpVaultRevision } from '../vault-events';
 import { aggregateVisits } from './aggregate';
+import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
 import type { DayEntries, EntryGroup, PageRecord, RangeStats, VisitRecord } from './types';
 
 export async function getVisitsBetween(start: number, end: number): Promise<VisitRecord[]> {
@@ -121,9 +122,11 @@ export async function deleteDayFromVault(date: Date | number): Promise<void> {
 
 export async function clearVaultData(): Promise<void> {
   await db.transaction('rw', db.pages, db.visits, db.meta, async () => {
+    const currentEpoch = await getVaultEpoch();
     await db.pages.clear();
     await db.visits.clear();
     await db.meta.clear();
+    await db.meta.put({ key: VAULT_EPOCH_KEY, value: currentEpoch + 1 });
   });
   await bumpVaultRevision();
 }

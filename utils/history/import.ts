@@ -3,6 +3,7 @@ import { endOfDay, startOfDay } from '../date';
 import { getSettings } from '../settings';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
+import { getVaultEpoch } from './epoch';
 import type { ImportState } from './types';
 
 export const IMPORT_STATE_KEY = 'importState';
@@ -17,6 +18,13 @@ const IMPORT_BATCH_MS = 15_000;
 interface ImportLock {
   owner: string;
   expiresAt: number;
+}
+
+class ImportCancelledError extends Error {
+  constructor() {
+    super('Import cancelled');
+    this.name = 'ImportCancelledError';
+  }
 }
 
 export function defaultImportState(now = Date.now()): ImportState {
@@ -95,6 +103,7 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
   const owner = await acquireImportLock();
   if (!owner) return state;
 
+  const epoch = await getVaultEpoch();
   const startedAt = Date.now();
 
   try {
@@ -114,15 +123,21 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
 
       const dayEnd = state.cursorEnd;
       const dayStart = Math.max(startOfDay(dayEnd - 1).getTime(), state.windowStart);
-      const processed = await processRange(dayStart, dayEnd);
+      const processed = await processRange(dayStart, dayEnd, epoch, owner);
+
+      const current = await getImportState();
+      if (current.phase !== 'running' || (await getVaultEpoch()) !== epoch) {
+        state = current;
+        break;
+      }
 
       state = {
-        ...state,
+        ...current,
         cursorEnd: dayStart,
-        daysDone: state.daysDone + 1,
-        pages: state.pages + processed.pages,
-        visits: state.visits + processed.visits,
-        emptyStreak: processed.pages > 0 ? 0 : state.emptyStreak + 1,
+        daysDone: current.daysDone + 1,
+        pages: current.pages + processed.pages,
+        visits: current.visits + processed.visits,
+        emptyStreak: processed.pages > 0 ? 0 : current.emptyStreak + 1,
         updatedAt: Date.now(),
       };
 
@@ -141,7 +156,7 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
       if (!(await renewImportLock(owner))) break;
     }
 
-    if (state.phase === 'done') {
+    if (state.phase === 'done' && (await getVaultEpoch()) === epoch) {
       state = { ...state, updatedAt: Date.now() };
       await saveImportState(state);
       await bumpVaultRevision();
@@ -149,6 +164,10 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
 
     return state;
   } catch (error) {
+    if (error instanceof ImportCancelledError) {
+      return getImportState();
+    }
+
     state = {
       ...state,
       phase: 'error',
@@ -165,6 +184,25 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
 export async function cancelImport(): Promise<void> {
   const state = await getImportState();
   await saveImportState({ ...state, phase: 'idle', updatedAt: Date.now() });
+  await releaseImportLock('');
+}
+
+/**
+ * Waits for the current batch to release the import lock. Combined with the
+ * vault epoch check, this lets a clear finish without an in-flight batch
+ * resurrecting rows or overwriting the final import state.
+ */
+export async function waitForImportLockRelease(timeoutMs = 5000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const result = await browser.storage.local.get(IMPORT_LOCK_KEY);
+    const current = result[IMPORT_LOCK_KEY] as ImportLock | undefined;
+    if (!current || current.expiresAt <= Date.now()) return true;
+    await delay(100);
+  }
+
+  return false;
 }
 
 export async function resetImportState(): Promise<void> {
@@ -179,7 +217,11 @@ export async function saveImportState(state: ImportState): Promise<void> {
 async function processRange(
   start: number,
   end: number,
+  epoch: number,
+  owner: string,
 ): Promise<{ pages: number; visits: number }> {
+  if (!(await isImportLockHeld(owner))) throw new ImportCancelledError();
+
   const items = await browser.history.search({
     text: '',
     startTime: start,
@@ -189,22 +231,32 @@ async function processRange(
 
   if (items.length >= SEARCH_MAX_RESULTS && end - start > 3_600_000) {
     const middle = start + Math.floor((end - start) / 2);
-    const left = await processRange(start, middle);
-    const right = await processRange(middle, end);
+    const left = await processRange(start, middle, epoch, owner);
+    const right = await processRange(middle, end, epoch, owner);
     return { pages: left.pages + right.pages, visits: left.visits + right.visits };
   }
 
   let visits = 0;
 
   for (let index = 0; index < items.length; index += 8) {
+    if (!(await isImportLockHeld(owner))) throw new ImportCancelledError();
+
     const chunk = items.slice(index, index + 8);
     const results = await Promise.all(
-      chunk.map((item) => ingestHistoryItem(item, { source: 'import', notify: false })),
+      chunk.map((item) =>
+        ingestHistoryItem(item, { source: 'import', notify: false, expectedEpoch: epoch }),
+      ),
     );
     visits += results.reduce((total, result) => total + result.insertedVisits, 0);
   }
 
   return { pages: items.length, visits };
+}
+
+async function isImportLockHeld(owner: string): Promise<boolean> {
+  const result = await browser.storage.local.get(IMPORT_LOCK_KEY);
+  const current = result[IMPORT_LOCK_KEY] as ImportLock | undefined;
+  return Boolean(current && current.owner === owner && current.expiresAt > Date.now());
 }
 
 async function acquireImportLock(): Promise<string | null> {
@@ -247,4 +299,8 @@ export function isImportState(value: unknown): value is ImportState {
     typeof (value as { phase?: unknown }).phase === 'string' &&
     typeof (value as { cursorEnd?: unknown }).cursorEnd === 'number'
   );
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
