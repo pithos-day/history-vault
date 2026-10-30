@@ -1,3 +1,4 @@
+import type { Browser } from 'wxt/browser';
 import { browser } from 'wxt/browser';
 import { parseDayKey } from '@/utils/date';
 import { ingestHistoryItem } from '@/utils/history/collect';
@@ -29,7 +30,7 @@ export default defineBackground(() => {
   });
 
   browser.history.onVisited.addListener((item) => {
-    void ingestHistoryItem(item).catch((error) => {
+    void storeVisitedItem(item).catch((error) => {
       console.error('History Vault: failed to store visit', error);
     });
   });
@@ -112,6 +113,24 @@ async function handleVisitRemoved(removed: {
   }
 }
 
+async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void> {
+  const result = await ingestHistoryItem(item);
+  if (!result.page || result.page.title) return;
+
+  // Chrome fires onVisited before the page title is available. Re-read the
+  // item shortly after so the vault does not keep an empty title forever.
+  await delay(1500);
+  const candidates = await browser.history.search({
+    text: item.url ?? '',
+    startTime: item.lastVisitTime ? item.lastVisitTime - 60_000 : 0,
+    maxResults: 10,
+  });
+  const fresh = candidates.find(
+    (candidate) => candidate.url === item.url && candidate.title?.trim(),
+  );
+  if (fresh) await ingestHistoryItem(fresh);
+}
+
 async function clearVaultAndStopImport(): Promise<void> {
   await cancelImport();
   await waitForImportLockRelease();
@@ -168,4 +187,8 @@ function isImportState(value: unknown): value is ImportState {
     value !== null &&
     typeof (value as { phase?: unknown }).phase === 'string'
   );
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

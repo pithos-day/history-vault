@@ -100,6 +100,22 @@ describe('vault maintenance', () => {
     expect(await db.pages.count()).toBe(1);
   });
 
+  it('updates a page title when a later ingest provides one', async () => {
+    const item = {
+      id: 'title-test',
+      url: 'https://example.com/title',
+      title: '',
+      lastVisitTime: new Date(2025, 8, 25, 10).getTime(),
+      visitCount: 1,
+    };
+
+    await ingestHistoryItem(item);
+    expect((await db.pages.get(item.url))?.title).toBe('');
+
+    await ingestHistoryItem({ ...item, title: 'Resolved Title' });
+    expect((await db.pages.get(item.url))?.title).toBe('Resolved Title');
+  });
+
   it('deletes a URL only for the requested day', async () => {
     const dayOne = new Date(2025, 8, 25, 10).getTime();
     const dayTwo = new Date(2025, 8, 26, 10).getTime();

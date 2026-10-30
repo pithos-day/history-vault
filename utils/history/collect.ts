@@ -57,6 +57,7 @@ export async function ingestHistoryItem(
     existingPage?.firstVisitTime ?? Number.POSITIVE_INFINITY,
   );
   const title = item.title?.trim() || existingPage?.title || '';
+  const titleChanged = existingPage?.title !== title;
 
   const page: PageRecord = {
     url,
@@ -82,7 +83,7 @@ export async function ingestHistoryItem(
 
   if (written === null) return { insertedVisits: 0, page: null };
 
-  if (written > 0 && options.notify !== false) {
+  if ((written > 0 || titleChanged) && options.notify !== false) {
     await bumpVaultRevision();
   }
 
