@@ -1,21 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="History Vault">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="#da70d6">
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1e293b" />
-      <stop offset="1" stop-color="#0b1120" />
-    </linearGradient>
+    <mask id="history-plus-cutout">
+      <rect width="16" height="16" fill="#fff"/>
+      <circle cx="12.75" cy="12.75" r="3.25" fill="#000"/>
+    </mask>
   </defs>
-  <rect width="128" height="128" rx="28" fill="url(#background)" />
-  <rect x="8" y="8" width="112" height="112" rx="22" fill="none" stroke="#334155" stroke-width="2" />
-  <circle cx="64" cy="64" r="36" fill="#111c2e" stroke="#fbbf24" stroke-width="8" />
-  <circle cx="64" cy="64" r="26" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round" opacity="0.7" />
-  <path d="M64 64V44" fill="none" stroke="#fde68a" stroke-width="7" stroke-linecap="round" />
-  <path d="M64 64L79 74" fill="none" stroke="#fde68a" stroke-width="7" stroke-linecap="round" />
-  <circle cx="64" cy="64" r="5" fill="#fbbf24" />
-  <g fill="#fbbf24">
-    <circle cx="64" cy="19" r="4" />
-    <circle cx="64" cy="109" r="4" />
-    <circle cx="19" cy="64" r="4" />
-    <circle cx="109" cy="64" r="4" />
-  </g>
+  <path mask="url(#history-plus-cutout)" d="m.427 1.927 1.215 1.215a8.002 8.002 0 1 1-1.6 5.685.75.75 0 1 1 1.493-.154 6.5 6.5 0 1 0 1.18-4.458l1.358 1.358A.25.25 0 0 1 3.896 6H.25A.25.25 0 0 1 0 5.75V2.104a.25.25 0 0 1 .427-.177ZM7.75 4a.75.75 0 0 1 .75.75v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5A.75.75 0 0 1 7.75 4Z"/>
+  <path d="M12.75 10.5v4.5M10.5 12.75h4.5" stroke="#da70d6" stroke-width="1.5" stroke-linecap="round" fill="none"/>
 </svg>
