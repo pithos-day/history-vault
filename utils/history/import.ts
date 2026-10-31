@@ -16,10 +16,13 @@ export const IMPORT_STATE_KEY = 'importState';
 const IMPORT_LOCK_KEY = 'importLock';
 
 const DAY_MS = 86_400_000;
-const MAX_DAYS = 3650;
+const MAX_IMPORT_DAYS = 3650;
 const LOCK_TTL_MS = 2 * 60 * 1000;
 const SEARCH_MAX_RESULTS = 5000;
 const IMPORT_BATCH_MS = 15_000;
+// Full-history scans stop after this many consecutive days with no pages.
+// Chrome's 90-day retention makes longer gaps unlikely to contain more data.
+const EMPTY_DAY_STREAK_LIMIT = 60;
 
 interface ImportLock {
   owner: string;
@@ -34,17 +37,28 @@ class ImportCancelledError extends Error {
 }
 
 export function defaultImportState(now = Date.now()): ImportState {
-  return {
-    phase: 'idle',
+  return createImportState({
     startedAt: now,
     updatedAt: now,
     cursorEnd: startOfNextDay(now).getTime(),
     windowStart: startOfDay(now).getTime(),
-    daysDone: 0,
     daysTotal: 0,
+  });
+}
+
+function createImportState(
+  overrides: Partial<ImportState> & Pick<ImportState, 'cursorEnd' | 'windowStart' | 'daysTotal'>,
+): ImportState {
+  const now = Date.now();
+  return {
+    phase: 'idle',
+    startedAt: now,
+    updatedAt: now,
+    daysDone: 0,
     pages: 0,
     visits: 0,
     emptyStreak: 0,
+    ...overrides,
   };
 }
 
@@ -69,22 +83,18 @@ export async function startImport(
   const cursorEnd = startOfNextDay(now).getTime();
   const windowStart = windowDays > 0 ? startOfDay(now - windowDays * DAY_MS).getTime() : 0;
   const daysTotal =
-    windowDays > 0 ? Math.max(1, Math.ceil((cursorEnd - windowStart) / DAY_MS)) : MAX_DAYS;
+    windowDays > 0 ? Math.max(1, Math.ceil((cursorEnd - windowStart) / DAY_MS)) : MAX_IMPORT_DAYS;
 
   const initialize = reset || current.phase === 'idle' || current.daysTotal === 0;
   const state: ImportState = initialize
-    ? {
+    ? createImportState({
         phase: 'running',
         startedAt: now,
         updatedAt: now,
         cursorEnd,
         windowStart,
-        daysDone: 0,
         daysTotal,
-        pages: 0,
-        visits: 0,
-        emptyStreak: 0,
-      }
+      })
     : {
         ...current,
         phase: 'running',
@@ -111,6 +121,7 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
 
   const epoch = await getVaultEpoch();
   const startedAt = Date.now();
+  const isFullHistoryScan = state.windowStart === 0;
 
   try {
     let pagesProcessed = 0;
@@ -151,7 +162,7 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
       await saveImportState(state);
       await bumpVaultRevision({ days: [dayKey(dayStart)] });
 
-      if (state.windowStart === 0 && state.emptyStreak >= 60 && state.daysDone > 0) {
+      if (isFullHistoryScan && state.emptyStreak >= EMPTY_DAY_STREAK_LIMIT && state.daysDone > 0) {
         state = { ...state, phase: 'done', updatedAt: Date.now() };
         break;
       }
