@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import { endOfDay, startOfDay } from '../date';
+import { dayKey, endOfDay, startOfDay } from '../date';
 import { getSettings } from '../settings';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
@@ -149,7 +149,7 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
 
       pagesProcessed += processed.pages;
       await saveImportState(state);
-      await bumpVaultRevision();
+      await bumpVaultRevision({ days: [dayKey(dayStart)] });
 
       if (state.windowStart === 0 && state.emptyStreak >= 60 && state.daysDone > 0) {
         state = { ...state, phase: 'done', updatedAt: Date.now() };
@@ -165,7 +165,6 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
     if (state.phase === 'done' && (await getVaultEpoch()) === epoch) {
       state = { ...state, updatedAt: Date.now() };
       await saveImportState(state);
-      await bumpVaultRevision();
     }
 
     return state;

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { getVaultRevision, subscribeVaultRevision } from '@/utils/vault-events';
+import { getVaultRevision, subscribeVaultRevision, type VaultRevision } from '@/utils/vault-events';
 
-export function useVaultRevision(): number {
-  const [revision, setRevision] = useState(0);
+const emptyRevision: VaultRevision = { seq: 0, days: [], reset: false };
+
+export function useVaultRevision(): VaultRevision {
+  const [revision, setRevision] = useState<VaultRevision>(emptyRevision);
 
   useEffect(() => {
     let active = true;

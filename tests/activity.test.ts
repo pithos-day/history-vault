@@ -8,6 +8,7 @@ import {
   deleteUrlFromVault,
   deleteUrlVisitsBetween,
   getCalendarActivity,
+  getDayEntriesForDates,
   getEntryDaysPage,
   removeRedirectedVisits,
 } from '../utils/history/query';
@@ -82,6 +83,20 @@ describe('day activity summary', () => {
     });
     expect(second.days.map((day) => day.date)).toEqual([dayKey(older)]);
     expect(second.hasMore).toBe(false);
+  });
+
+  it('rebuilds only the requested days for a revision update', async () => {
+    const older = new Date(2026, 9, 14, 9).getTime();
+    const newer = new Date(2026, 9, 15, 9).getTime();
+    await ingest('https://older.test/', 'Older', [visit('older', older)]);
+    await ingest('https://newer.test/', 'Newer', [visit('newer', newer)]);
+
+    const changed = await getDayEntriesForDates([dayKey(newer), '2026-10-01']);
+    expect(changed.map((day) => day.date)).toEqual([dayKey(newer)]);
+    expect(changed[0]?.entries[0]?.title).toBe('Newer');
+
+    await deleteDayFromVault(newer);
+    expect(await getDayEntriesForDates([dayKey(newer)])).toEqual([]);
   });
 
   it('updates the summary when visits are removed', async () => {

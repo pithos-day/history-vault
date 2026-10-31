@@ -101,6 +101,21 @@ async function buildDayEntriesForRows(
     .sort((left, right) => right.date.localeCompare(left.date));
 }
 
+/**
+ * Rebuilds only the requested days after a revision tells the list which
+ * days changed. This keeps live visits from re-reading every loaded day.
+ */
+export async function getDayEntriesForDates(dates: readonly string[]): Promise<DayEntries[]> {
+  if (dates.length === 0) return [];
+
+  const rows = (await db.activity.bulkGet([...new Set(dates)])).filter(
+    (row): row is DayActivityRecord => row !== undefined,
+  );
+  if (rows.length === 0) return [];
+
+  return buildDayEntriesForRows(rows, Date.now());
+}
+
 export async function getRecentPages(limit = 8): Promise<PageRecord[]> {
   return db.pages.orderBy('lastVisitTime').reverse().limit(limit).toArray();
 }
@@ -176,7 +191,7 @@ export async function deleteUrlFromVault(url: string, date?: Date | number): Pro
   }
 
   await cleanupPage(url);
-  await bumpVaultRevision();
+  await bumpVaultRevision({ days: visits.map((visit) => dayKey(visit.visitedAt)) });
 }
 
 /** Removes only the visits inside the given window, used for redirect cleanup. */
@@ -194,7 +209,7 @@ export async function deleteUrlVisitsBetween(
   await db.visits.bulkDelete(visits.map((visit) => visit.id));
   await recomputeActivityForVisits(visits);
   await cleanupPage(url);
-  await bumpVaultRevision();
+  await bumpVaultRevision({ days: visits.map((visit) => dayKey(visit.visitedAt)) });
 }
 
 /**
@@ -309,7 +324,7 @@ async function deleteSupersededVisits(
     await cleanupPage(url);
   }
 
-  await bumpVaultRevision();
+  await bumpVaultRevision({ days: removed.map((visit) => dayKey(visit.visitedAt)) });
   return removed.length;
 }
 
@@ -326,7 +341,7 @@ export async function deleteDayFromVault(date: Date | number): Promise<void> {
     await cleanupPage(url);
   }
 
-  await bumpVaultRevision();
+  await bumpVaultRevision({ days: [dayKey(range.start)] });
 }
 
 export async function clearVaultData(): Promise<void> {
@@ -338,7 +353,7 @@ export async function clearVaultData(): Promise<void> {
     await db.meta.clear();
     await db.meta.put({ key: VAULT_EPOCH_KEY, value: currentEpoch + 1 });
   });
-  await bumpVaultRevision();
+  await bumpVaultRevision({ reset: true });
 }
 
 export async function getStorageEstimate(): Promise<{ usage: number; quota: number } | null> {

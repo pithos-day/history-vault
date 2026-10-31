@@ -3,23 +3,68 @@ import { browser } from 'wxt/browser';
 
 const VAULT_REVISION_KEY = 'vaultRevision';
 
-export async function bumpVaultRevision(): Promise<void> {
-  await browser.storage.local.set({ [VAULT_REVISION_KEY]: Date.now() });
+export interface VaultRevision {
+  seq: number;
+  days: string[];
+  reset: boolean;
 }
 
-export async function getVaultRevision(): Promise<number> {
+export interface VaultRevisionOptions {
+  days?: Iterable<string>;
+  reset?: boolean;
+}
+
+const EMPTY_REVISION: VaultRevision = { seq: 0, days: [], reset: false };
+let lastSequence = 0;
+
+function nextSequence(): number {
+  lastSequence = Math.max(Date.now(), lastSequence + 1);
+  return lastSequence;
+}
+
+export async function bumpVaultRevision(options: VaultRevisionOptions = {}): Promise<void> {
+  const revision: VaultRevision = {
+    seq: nextSequence(),
+    days: [...new Set(options.days ?? [])].filter(Boolean),
+    reset: options.reset ?? false,
+  };
+  await browser.storage.local.set({ [VAULT_REVISION_KEY]: revision });
+}
+
+export async function getVaultRevision(): Promise<VaultRevision> {
   const result = await browser.storage.local.get(VAULT_REVISION_KEY);
-  const value = result[VAULT_REVISION_KEY];
-  return typeof value === 'number' ? value : 0;
+  return normalizeVaultRevision(result[VAULT_REVISION_KEY]);
 }
 
-export function subscribeVaultRevision(listener: (revision: number) => void): () => void {
+export function subscribeVaultRevision(listener: (revision: VaultRevision) => void): () => void {
   const handler = (changes: Record<string, Browser.storage.StorageChange>, areaName: string) => {
     if (areaName !== 'local') return;
     const change = changes[VAULT_REVISION_KEY];
-    if (typeof change?.newValue === 'number') listener(change.newValue);
+    const revision = normalizeVaultRevision(change?.newValue);
+    if (revision.seq > 0) listener(revision);
   };
 
   browser.storage.onChanged.addListener(handler);
   return () => browser.storage.onChanged.removeListener(handler);
+}
+
+function normalizeVaultRevision(value: unknown): VaultRevision {
+  if (typeof value === 'number') {
+    return { seq: value, days: [], reset: false };
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    const record = value as Partial<VaultRevision>;
+    if (typeof record.seq === 'number') {
+      return {
+        seq: record.seq,
+        days: Array.isArray(record.days)
+          ? record.days.filter((day): day is string => typeof day === 'string')
+          : [],
+        reset: record.reset === true,
+      };
+    }
+  }
+
+  return EMPTY_REVISION;
 }

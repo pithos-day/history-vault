@@ -1,5 +1,6 @@
 import type { Browser } from 'wxt/browser';
 import { browser } from 'wxt/browser';
+import { dayKey } from '../date';
 import { db } from '../db';
 import { getHost, isSupportedUrl } from '../url';
 import { bumpVaultRevision } from '../vault-events';
@@ -105,7 +106,9 @@ export async function ingestHistoryItem(
   if (written === null) return { insertedVisits: 0, matchedVisits: 0, page: null };
 
   if ((written > 0 || titleChanged) && options.notify !== false) {
-    await bumpVaultRevision();
+    await bumpVaultRevision({
+      days: (newVisits.length > 0 ? newVisits : visits).map((visit) => dayKey(visit.visitedAt)),
+    });
   }
 
   return { insertedVisits: written, matchedVisits: visits.length, page };

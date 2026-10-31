@@ -41,7 +41,7 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    void revision;
+    void revision.seq;
     void Promise.all([getRecentPages(8), getVaultCounts()]).then(([recent, vaultCounts]) => {
       if (!active) return;
       setPages(recent);
@@ -51,7 +51,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [revision]);
+  }, [revision.seq]);
 
   const openHistory = (focusSearch = false) => {
     const url = new URL(browser.runtime.getURL('/history.html'));

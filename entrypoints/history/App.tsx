@@ -23,7 +23,7 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { StatsPanel } from './components/StatsPanel';
 import { TopBar } from './components/TopBar';
 import { WelcomeDialog } from './components/WelcomeDialog';
-import { useDebouncedValue } from './hooks/useDebouncedValue';
+import { useDebouncedVaultRevision } from './hooks/useDebouncedVaultRevision';
 import { useEntriesInRange } from './hooks/useEntriesInRange';
 import { useImportRunner } from './hooks/useImportRunner';
 import { useImportState } from './hooks/useImportState';
@@ -52,7 +52,8 @@ interface ToastState {
 
 export default function App() {
   const revision = useVaultRevision();
-  const dataRevision = useDebouncedValue(revision, 400);
+  const dataRevision = useDebouncedVaultRevision(revision, 400);
+  const revisionSeq = dataRevision.seq;
   const { settings, loaded, updateSettings } = useSettings();
   const theme = useResolvedTheme(settings.theme);
   const importState = useImportState();
@@ -83,7 +84,7 @@ export default function App() {
     range.start,
     range.end,
     'day',
-    dataRevision,
+    revisionSeq,
     !searching && viewState.statsVisible,
   );
   const {
@@ -93,8 +94,8 @@ export default function App() {
     hasMore: listHasMore,
     loadMore: loadMoreEntries,
   } = useEntriesInRange(range.start, range.end, dataRevision, !searching);
-  const { results, loading: searchLoading } = useSearch(query, dataRevision);
-  const { activity: calendarActivity, bounds } = useVaultOverview(dataRevision);
+  const { results, loading: searchLoading } = useSearch(query, revisionSeq);
+  const { activity: calendarActivity, bounds } = useVaultOverview(revisionSeq);
   const calendarMonths = useMemo(
     () => buildCalendarMonths(bounds, selectedDate),
     [bounds, selectedDate],
@@ -395,7 +396,7 @@ export default function App() {
           onStartImport={handleStartImport}
           onToast={showToast}
           onUpdate={updateSettings}
-          revision={dataRevision}
+          revision={revisionSeq}
           settings={settings}
         />
       ) : null}
