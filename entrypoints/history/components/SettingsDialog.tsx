@@ -1,3 +1,10 @@
+import {
+  X as CloseIcon,
+  Database as DatabaseIcon,
+  Download as DownloadIcon,
+  Trash2 as TrashIcon,
+  Upload as UploadIcon,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { formatCount } from '@/utils/date';
@@ -7,7 +14,6 @@ import { getStorageEstimate } from '@/utils/history/query';
 import type { ImportState } from '@/utils/history/types';
 import type { Settings, ThemeSetting } from '@/utils/settings';
 import { formatVersion } from '@/utils/version';
-import { CloseIcon, DatabaseIcon, DownloadIcon, TrashIcon, UploadIcon } from '../lib/icons';
 
 interface SettingsDialogProps {
   settings: Settings;

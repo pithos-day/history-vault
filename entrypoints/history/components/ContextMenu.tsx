@@ -1,7 +1,11 @@
+import {
+  Copy as CopyIcon,
+  ExternalLink as ExternalLinkIcon,
+  Trash2 as TrashIcon,
+} from 'lucide-react';
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { EntryGroup } from '@/utils/history/types';
-import { CopyIcon, ExternalLinkIcon, TrashIcon } from '../lib/icons';
 
 interface ContextMenuProps {
   x: number;

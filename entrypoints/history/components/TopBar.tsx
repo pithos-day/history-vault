@@ -1,13 +1,13 @@
-import type { RefObject } from 'react';
 import {
-  CalendarIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CloseIcon,
-  InfoIcon,
-  SearchIcon,
-  SettingsIcon,
-} from '../lib/icons';
+  Calendar as CalendarIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  X as CloseIcon,
+  Info as InfoIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+} from 'lucide-react';
+import type { RefObject } from 'react';
 
 interface TopBarProps {
   query: string;

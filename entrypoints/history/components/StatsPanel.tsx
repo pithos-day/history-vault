@@ -1,6 +1,6 @@
+import { X as CloseIcon } from 'lucide-react';
 import { formatCount, formatDateRange } from '@/utils/date';
 import type { RangeStats } from '@/utils/history/types';
-import { CloseIcon } from '../lib/icons';
 import { ActivityChart } from './ActivityChart';
 import { TopDomains } from './TopDomains';
 import { TransitionDonut } from './TransitionDonut';

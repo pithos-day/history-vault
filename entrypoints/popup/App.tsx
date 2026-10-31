@@ -1,3 +1,8 @@
+import {
+  ChevronRight as ChevronRightIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { formatCount, formatRelativeDateHeader, formatTime } from '@/utils/date';
@@ -10,7 +15,6 @@ import { useImportState } from '../history/hooks/useImportState';
 import { useResolvedTheme } from '../history/hooks/useResolvedTheme';
 import { useSettings } from '../history/hooks/useSettings';
 import { useVaultRevision } from '../history/hooks/useVaultRevision';
-import { ChevronRightIcon, SearchIcon, SettingsIcon } from '../history/lib/icons';
 
 const vaultMark = (
   <svg aria-hidden="true" viewBox="0 0 128 128">
