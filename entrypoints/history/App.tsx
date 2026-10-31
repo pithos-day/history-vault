@@ -136,8 +136,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const end = Date.now();
-    void removeSupersededSameDocumentVisits(end - RECENT_CLEANUP_MS, end).catch(() => {});
+    let lastRun = 0;
+
+    const cleanup = () => {
+      const now = Date.now();
+      if (now - lastRun < 3000) return;
+      lastRun = now;
+      void removeSupersededSameDocumentVisits(now - RECENT_CLEANUP_MS, now).catch(() => {});
+    };
+
+    cleanup();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') cleanup();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
