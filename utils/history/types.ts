@@ -99,6 +99,12 @@ export interface CalendarDayActivity {
   pages: number;
 }
 
+export interface RedirectMarker {
+  url: string;
+  from: number;
+  to: number;
+}
+
 type ImportPhase = 'idle' | 'running' | 'done' | 'error';
 
 export interface ImportState {

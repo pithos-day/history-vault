@@ -4,6 +4,8 @@ import { getSettings } from '../settings';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
 import { getVaultEpoch } from './epoch';
+import { removeRedirectedVisits } from './query';
+import { refreshRedirectMarkers } from './redirects';
 import type { ImportState } from './types';
 
 export const IMPORT_STATE_KEY = 'importState';
@@ -237,6 +239,7 @@ async function processRange(
   for (let index = 0; index < items.length; index += 8) {
     if (!(await isImportLockHeld(owner))) throw new ImportCancelledError();
 
+    const redirects = await refreshRedirectMarkers();
     const chunk = items.slice(index, index + 8);
     const results = await Promise.all(
       chunk.map((item) =>
@@ -245,6 +248,7 @@ async function processRange(
           notify: false,
           since: start,
           until: end,
+          redirects,
           expectedEpoch: epoch,
         }),
       ),
@@ -253,6 +257,7 @@ async function processRange(
     visits += results.reduce((total, result) => total + result.insertedVisits, 0);
   }
 
+  await removeRedirectedVisits(start, end);
   return { pages: matchedPages, visits };
 }
 

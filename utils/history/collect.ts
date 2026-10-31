@@ -4,8 +4,9 @@ import { db } from '../db';
 import { getHost, isSupportedUrl } from '../url';
 import { bumpVaultRevision } from '../vault-events';
 import { getVaultEpoch } from './epoch';
+import { isRedirectedVisit } from './redirects';
 import { normalizeSearchText } from './search';
-import type { PageRecord, VisitRecord } from './types';
+import type { PageRecord, RedirectMarker, VisitRecord } from './types';
 
 interface IngestOptions {
   source?: VisitRecord['source'];
@@ -14,6 +15,8 @@ interface IngestOptions {
   since?: number;
   /** Exclusive upper bound for visits (used by windowed imports). */
   until?: number;
+  /** Visits matching a detected redirect intermediate are skipped. */
+  redirects?: readonly RedirectMarker[];
   /**
    * Import batches capture the vault generation up front. If the vault is
    * cleared while a batch is in flight, the write transaction refuses to
@@ -107,10 +110,14 @@ export function resolveVisits(
   host: string,
   visitItems: Browser.history.VisitItem[],
   item: Browser.history.HistoryItem,
-  options: Pick<IngestOptions, 'source' | 'since' | 'until'> = {},
+  options: Pick<IngestOptions, 'source' | 'since' | 'until' | 'redirects'> = {},
 ): VisitRecord[] {
   const allVisits = toVisitRecords(url, host, visitItems, options.source ?? 'live');
-  const visits = allVisits.filter((visit) => isWithinWindow(visit.visitedAt, options));
+  const visits = allVisits.filter(
+    (visit) =>
+      isWithinWindow(visit.visitedAt, options) &&
+      !isRedirectedVisit(options.redirects ?? [], visit.url, visit.visitedAt),
+  );
   if (visits.length > 0) return visits;
 
   const fallbackTime = item.lastVisitTime;

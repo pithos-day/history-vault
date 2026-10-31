@@ -3,6 +3,7 @@ import { db } from '../db';
 import { bumpVaultRevision } from '../vault-events';
 import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
+import { refreshRedirectMarkers } from './redirects';
 import type {
   CalendarDayActivity,
   DayEntries,
@@ -137,6 +138,41 @@ export async function deleteUrlFromVault(url: string, date?: Date | number): Pro
 
   await cleanupPage(url);
   await bumpVaultRevision();
+}
+
+/** Removes only the visits inside the given window, used for redirect cleanup. */
+export async function deleteUrlVisitsBetween(
+  url: string,
+  start: number,
+  end: number,
+): Promise<void> {
+  const visits = await db.visits
+    .where('[url+visitedAt]')
+    .between([url, start], [url, end], true, true)
+    .toArray();
+  if (visits.length === 0) return;
+
+  await db.visits.bulkDelete(visits.map((visit) => visit.id));
+  await cleanupPage(url);
+  await bumpVaultRevision();
+}
+
+/**
+ * Import can run in a different page than the background worker that marks
+ * redirects. Re-check a processed range against the latest markers so an
+ * intermediate page cannot slip in while the batch was in flight.
+ */
+export async function removeRedirectedVisits(start: number, end: number): Promise<void> {
+  const markers = await refreshRedirectMarkers();
+
+  for (const marker of markers) {
+    if (marker.to < start || marker.from >= end) continue;
+    await deleteUrlVisitsBetween(
+      marker.url,
+      Math.max(marker.from, start),
+      Math.min(marker.to, end),
+    );
+  }
 }
 
 export async function deleteDayFromVault(date: Date | number): Promise<void> {

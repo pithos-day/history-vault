@@ -105,4 +105,32 @@ describe('resolveVisits', () => {
 
     expect(visits.map((visit) => visit.id)).toEqual(['old', 'new']);
   });
+
+  it('drops a visit that belongs to a detected redirect intermediate', () => {
+    const redirects = [
+      {
+        url: 'https://redirect.test/',
+        from: START + HOUR - 1000,
+        to: START + HOUR + 2000,
+      },
+    ];
+
+    const intermediate = resolveVisits(
+      'https://redirect.test/',
+      'redirect.test',
+      [visit('redirect', START + HOUR)],
+      item(START + HOUR),
+      { source: 'import', since: START, until: END, redirects },
+    );
+    const destination = resolveVisits(
+      URL,
+      'example.com',
+      [visit('target', START + HOUR + 5)],
+      item(START + HOUR + 5),
+      { source: 'import', since: START, until: END, redirects },
+    );
+
+    expect(intermediate).toEqual([]);
+    expect(destination).toHaveLength(1);
+  });
 });

@@ -12,7 +12,22 @@ import {
   startImport,
   waitForImportLockRelease,
 } from '@/utils/history/import';
-import { clearVaultData, deleteDayFromVault, deleteUrlFromVault } from '@/utils/history/query';
+import {
+  clearVaultData,
+  deleteDayFromVault,
+  deleteUrlFromVault,
+  deleteUrlVisitsBetween,
+} from '@/utils/history/query';
+import {
+  addRedirectMarker,
+  findRedirectSource,
+  getCachedRedirectMarkers,
+  isRedirectedVisit,
+  loadRedirectMarkers,
+  type NavigationSnapshot,
+  type RedirectSource,
+  resetRedirectMarkersCache,
+} from '@/utils/history/redirects';
 import type { ImportState } from '@/utils/history/types';
 import type { VaultRequest } from '@/utils/messages';
 import { isVaultRequest } from '@/utils/messages';
@@ -20,7 +35,16 @@ import { ensureDefaultSettings, getSettings } from '@/utils/settings';
 
 const IMPORT_ALARM = 'history-vault-import';
 
+interface NavigationState {
+  before?: NavigationSnapshot;
+  committed?: NavigationSnapshot;
+}
+
+const navigationStates = new Map<string, NavigationState>();
+
 export default defineBackground(() => {
+  void loadRedirectMarkers();
+
   browser.runtime.onInstalled.addListener(({ reason }) => {
     void handleInstalled(reason);
   });
@@ -33,6 +57,39 @@ export default defineBackground(() => {
     void storeVisitedItem(item).catch((error) => {
       console.error('History Vault: failed to store visit', error);
     });
+  });
+
+  browser.webNavigation.onBeforeNavigate.addListener((details) => {
+    if (details.frameId !== 0) return;
+    const state = getNavigationState(details.tabId, details.frameId);
+    state.before = { url: details.url, time: details.timeStamp };
+  });
+
+  browser.webNavigation.onCommitted.addListener((details) => {
+    if (details.frameId !== 0) return;
+    const state = getNavigationState(details.tabId, details.frameId);
+    const source = findRedirectSource({
+      targetUrl: details.url,
+      targetTime: details.timeStamp,
+      qualifiers: details.transitionQualifiers ?? [],
+      lastBeforeNavigate: state.before,
+      lastCommitted: state.committed,
+    });
+
+    state.committed = { url: details.url, time: details.timeStamp };
+
+    if (source) {
+      void handleRedirectSource(source).catch((error) => {
+        console.error('History Vault: failed to drop redirect page', error);
+      });
+    }
+  });
+
+  browser.tabs.onRemoved.addListener((tabId) => {
+    const prefix = `${tabId}:`;
+    for (const key of navigationStates.keys()) {
+      if (key.startsWith(prefix)) navigationStates.delete(key);
+    }
   });
 
   browser.history.onVisitRemoved.addListener((removed) => {
@@ -96,6 +153,26 @@ async function handleAlarm(name: string): Promise<void> {
   }
 }
 
+function getNavigationState(tabId: number, frameId: number): NavigationState {
+  const key = `${tabId}:${frameId}`;
+  let state = navigationStates.get(key);
+  if (!state) {
+    state = {};
+    navigationStates.set(key, state);
+  }
+  return state;
+}
+
+async function handleRedirectSource(source: RedirectSource): Promise<void> {
+  await addRedirectMarker({ url: source.url, from: source.from, to: source.to });
+  await deleteUrlVisitsBetween(source.url, source.from, source.to);
+
+  // The intermediate page's onVisited handler can still be finishing when the
+  // redirect target commits. Retry once so that late write is cleaned up too.
+  await delay(1500);
+  await deleteUrlVisitsBetween(source.url, source.from, source.to);
+}
+
 async function handleVisitRemoved(removed: {
   allHistory: boolean;
   urls?: string[];
@@ -114,7 +191,17 @@ async function handleVisitRemoved(removed: {
 }
 
 async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void> {
+  if (!item.url) return;
+  await loadRedirectMarkers();
+
+  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, item.lastVisitTime ?? 0)) return;
+
   const result = await ingestHistoryItem(item);
+  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, item.lastVisitTime ?? 0)) {
+    const visitedAt = item.lastVisitTime ?? Date.now();
+    await deleteUrlVisitsBetween(item.url, visitedAt - 1000, visitedAt + 2000);
+    return;
+  }
   if (!result.page || result.page.title) return;
 
   // Chrome fires onVisited before the page title is available. Re-read the
@@ -135,6 +222,7 @@ async function clearVaultAndStopImport(): Promise<void> {
   await cancelImport();
   await waitForImportLockRelease();
   await clearVaultData();
+  resetRedirectMarkersCache();
   await saveImportState({ ...defaultImportState(), phase: 'done' });
 }
 
