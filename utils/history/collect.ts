@@ -3,6 +3,7 @@ import { browser } from 'wxt/browser';
 import { db } from '../db';
 import { getHost, isSupportedUrl } from '../url';
 import { bumpVaultRevision } from '../vault-events';
+import { addVisitsToActivity } from './activity';
 import { getVaultEpoch } from './epoch';
 import { isRedirectedVisit } from './redirects';
 import { normalizeSearchText } from './search';
@@ -79,16 +80,26 @@ export async function ingestHistoryItem(
     visitCount: (existingPage?.visitCount ?? 0) + newVisits.length,
   };
 
-  const written = await db.transaction('rw', db.pages, db.visits, db.meta, async () => {
-    if (options.expectedEpoch !== undefined) {
-      const epoch = await getVaultEpoch();
-      if (epoch !== options.expectedEpoch) return null;
-    }
+  const written = await db.transaction(
+    'rw',
+    db.pages,
+    db.visits,
+    db.activity,
+    db.meta,
+    async () => {
+      if (options.expectedEpoch !== undefined) {
+        const epoch = await getVaultEpoch();
+        if (epoch !== options.expectedEpoch) return null;
+      }
 
-    await db.pages.put(page);
-    if (newVisits.length > 0) await db.visits.bulkPut(newVisits);
-    return newVisits.length;
-  });
+      await db.pages.put(page);
+      if (newVisits.length > 0) {
+        await addVisitsToActivity(newVisits);
+        await db.visits.bulkPut(newVisits);
+      }
+      return newVisits.length;
+    },
+  );
 
   if (written === null) return { insertedVisits: 0, matchedVisits: 0, page: null };
 

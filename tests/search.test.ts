@@ -21,6 +21,7 @@ describe('search', () => {
   beforeEach(async () => {
     await db.pages.clear();
     await db.visits.clear();
+    await db.activity.clear();
     await db.meta.clear();
   });
 

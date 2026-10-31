@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { dayKey, formatDateHeader } from '@/utils/date';
 import { getHeatColor } from '../lib/heat';
 
@@ -13,7 +14,7 @@ interface DayCellProps {
   onSelect: (date: Date) => void;
 }
 
-export function DayCell({
+export const DayCell = memo(function DayCell({
   date,
   views,
   pages,
@@ -50,4 +51,4 @@ export function DayCell({
       </button>
     </div>
   );
-}
+});

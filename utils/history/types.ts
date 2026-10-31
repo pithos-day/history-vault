@@ -99,6 +99,10 @@ export interface CalendarDayActivity {
   pages: number;
 }
 
+export interface DayActivityRecord extends CalendarDayActivity {
+  date: string;
+}
+
 export interface RedirectMarker {
   url: string;
   from: number;

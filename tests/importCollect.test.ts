@@ -42,7 +42,7 @@ function item(lastVisitTime: number): Browser.history.HistoryItem {
 }
 
 beforeEach(async () => {
-  await Promise.all([db.pages.clear(), db.visits.clear(), db.meta.clear()]);
+  await Promise.all([db.pages.clear(), db.visits.clear(), db.activity.clear(), db.meta.clear()]);
   getVisits.mockReset();
 });
 

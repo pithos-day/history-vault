@@ -24,6 +24,7 @@ import { StatsPanel } from './components/StatsPanel';
 import { TopBar } from './components/TopBar';
 import { WelcomeDialog } from './components/WelcomeDialog';
 import { useCalendarActivity } from './hooks/useCalendarActivity';
+import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { useEntriesInRange } from './hooks/useEntriesInRange';
 import { useImportRunner } from './hooks/useImportRunner';
 import { useImportState } from './hooks/useImportState';
@@ -53,10 +54,11 @@ interface ToastState {
 
 export default function App() {
   const revision = useVaultRevision();
+  const dataRevision = useDebouncedValue(revision, 400);
   const { settings, loaded, updateSettings } = useSettings();
   const theme = useResolvedTheme(settings.theme);
   const importState = useImportState();
-  const counts = useVaultCounts(revision);
+  const counts = useVaultCounts(dataRevision);
   const [viewState, setViewState] = useState<ViewState>(() => loadViewState());
   const [focusToken, setFocusToken] = useState(0);
   const [query, setQuery] = useState(() => getInitialQuery());
@@ -84,17 +86,18 @@ export default function App() {
     range.start,
     range.end,
     'day',
-    revision,
+    dataRevision,
     !searching && viewState.statsVisible,
   );
-  const { days: listDays, loading: listLoading } = useEntriesInRange(
-    range.start,
-    range.end,
-    revision,
-    !searching,
-  );
-  const { results, loading: searchLoading } = useSearch(query, revision);
-  const bounds = useVaultDateBounds(revision);
+  const {
+    days: listDays,
+    loading: listLoading,
+    loadingMore: listLoadingMore,
+    hasMore: listHasMore,
+    loadMore: loadMoreEntries,
+  } = useEntriesInRange(range.start, range.end, dataRevision, !searching);
+  const { results, loading: searchLoading } = useSearch(query, dataRevision);
+  const bounds = useVaultDateBounds(dataRevision);
   const calendarMonths = useMemo(
     () => buildCalendarMonths(bounds, selectedDate),
     [bounds, selectedDate],
@@ -104,7 +107,11 @@ export default function App() {
     const last = getMonthRange(calendarMonths[calendarMonths.length - 1] ?? selectedDate);
     return { start: first.start, end: last.end };
   }, [calendarMonths, selectedDate]);
-  const calendarActivity = useCalendarActivity(calendarRange.start, calendarRange.end, revision);
+  const calendarActivity = useCalendarActivity(
+    calendarRange.start,
+    calendarRange.end,
+    dataRevision,
+  );
   const calendarMaxViews = useMemo(() => {
     let max = 0;
     for (const day of calendarActivity.values()) max = Math.max(max, day.views);
@@ -354,9 +361,12 @@ export default function App() {
                 emptyText="この月の履歴はありません。"
                 focusDate={dayKey(selectedDate)}
                 focusToken={focusToken}
+                hasMore={listHasMore}
                 loading={listLoading}
+                loadingMore={listLoadingMore}
                 onContextMenu={handleContextMenu}
                 onDeleteDay={handleDeleteDay}
+                onLoadMore={loadMoreEntries}
                 onOpen={handleOpen}
               />
             )}

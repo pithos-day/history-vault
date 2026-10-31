@@ -1,0 +1,110 @@
+import { addDays, dayKey, parseDayKey, startOfDay } from '../date';
+import { db } from '../db';
+import { addVisitToDayActivity, toDayActivityRecords } from './day-activity';
+import type { DayActivityRecord, VisitRecord } from './types';
+
+interface VisitDayGroup {
+  date: string;
+  start: number;
+  url: string;
+  count: number;
+}
+
+/**
+ * Adds newly inserted visits to the per-day summary. Call this before the
+ * visits are written so the "first visit of this URL on that day" check sees
+ * only the pre-existing rows.
+ */
+export async function addVisitsToActivity(visits: VisitRecord[]): Promise<void> {
+  const groups = new Map<string, VisitDayGroup>();
+
+  for (const visit of visits) {
+    const start = startOfDay(visit.visitedAt).getTime();
+    const date = dayKey(start);
+    const key = `${date}\u0000${visit.url}`;
+    const group = groups.get(key);
+
+    if (group) group.count += 1;
+    else groups.set(key, { date, start, url: visit.url, count: 1 });
+  }
+
+  for (const group of groups.values()) {
+    const end = addDays(group.start, 1).getTime();
+    const previousVisits = await db.visits
+      .where('[url+visitedAt]')
+      .between([group.url, group.start], [group.url, end], true, false)
+      .count();
+    const current = await db.activity.get(group.date);
+
+    if (!current) {
+      const dayVisits = await db.visits
+        .where('visitedAt')
+        .between(group.start, end, true, false)
+        .toArray();
+      const pages = new Set(dayVisits.map((visit) => visit.url));
+      pages.add(group.url);
+      await db.activity.put({
+        date: group.date,
+        views: dayVisits.length + group.count,
+        pages: pages.size,
+      });
+      continue;
+    }
+
+    await db.activity.put({
+      date: group.date,
+      views: current.views + group.count,
+      pages: current.pages + (previousVisits > 0 ? 0 : 1),
+    });
+  }
+}
+
+async function recomputeDayActivity(date: string): Promise<void> {
+  const dayStart = parseDayKey(date);
+  if (!dayStart) return;
+
+  const start = dayStart.getTime();
+  const end = addDays(dayStart, 1).getTime();
+  const visits = await db.visits.where('visitedAt').between(start, end, true, false).toArray();
+
+  if (visits.length === 0) {
+    await db.activity.delete(date);
+    return;
+  }
+
+  await db.activity.put({
+    date,
+    views: visits.length,
+    pages: new Set(visits.map((visit) => visit.url)).size,
+  });
+}
+
+export async function recomputeActivityForVisits(visits: VisitRecord[]): Promise<void> {
+  const dates = new Set(visits.map((visit) => dayKey(visit.visitedAt)));
+  for (const date of dates) {
+    await recomputeDayActivity(date);
+  }
+}
+
+export async function rebuildDayActivity(): Promise<void> {
+  await db.transaction('rw', db.activity, db.visits, async () => {
+    const days = new Map<string, { views: number; urls: Set<string> }>();
+    await db.visits.each((visit) => {
+      addVisitToDayActivity(days, visit);
+    });
+    await db.activity.clear();
+    await db.activity.bulkPut(toDayActivityRecords(days));
+  });
+}
+
+export async function getDayActivity(
+  start: number,
+  end: number,
+): Promise<Map<string, DayActivityRecord>> {
+  const rows = await db.activity
+    .where('date')
+    .between(dayKey(start), dayKey(end - 1), true, true)
+    .toArray();
+
+  return new Map(rows.map((row) => [row.date, row]));
+}

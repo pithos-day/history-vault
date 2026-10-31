@@ -21,7 +21,7 @@ function page(url: string, title: string, lastVisitTime: number): PageRecord {
 
 describe('popup', () => {
   beforeEach(async () => {
-    await Promise.all([db.pages.clear(), db.visits.clear(), db.meta.clear()]);
+    await Promise.all([db.pages.clear(), db.visits.clear(), db.activity.clear(), db.meta.clear()]);
     await fakeBrowser.storage.local.clear();
     Object.assign(fakeBrowser.runtime, {
       getManifest: () => ({ name: 'History Vault', version: '0.1.0' }),

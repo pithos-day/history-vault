@@ -1,6 +1,7 @@
-import { dayKey, getDayRange, startOfDay } from '../date';
+import { addDays, dayKey, getDayRange, parseDayKey, startOfDay } from '../date';
 import { db } from '../db';
 import { bumpVaultRevision } from '../vault-events';
+import { getDayActivity, recomputeActivityForVisits } from './activity';
 import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
 import { refreshRedirectMarkers } from './redirects';
@@ -12,6 +13,13 @@ import type {
   RangeStats,
   VisitRecord,
 } from './types';
+
+const ENTRY_PAGE_DAYS = 7;
+
+export interface EntryDaysPage {
+  days: DayEntries[];
+  hasMore: boolean;
+}
 
 async function getVisitsBetween(start: number, end: number): Promise<VisitRecord[]> {
   return db.visits.where('visitedAt').between(start, end, true, false).toArray();
@@ -26,59 +34,45 @@ export async function getRangeStats(
   return aggregateVisits(visits, start, end, granularity);
 }
 
-export async function getEntriesInRange(start: number, end: number): Promise<DayEntries[]> {
-  const visits = await getVisitsBetween(start, end);
-  if (visits.length === 0) return [];
+/**
+ * Loads history one small page of days at a time. The day summary table keeps
+ * this cheap even when the vault contains years of history: an empty calendar
+ * month does not require scanning any visits.
+ */
+export async function getEntryDaysPage(
+  start: number,
+  end: number,
+  options: { limit?: number; before?: string } = {},
+): Promise<EntryDaysPage> {
+  const limit = options.limit ?? ENTRY_PAGE_DAYS;
+  const rows = await db.activity
+    .where('date')
+    .between(dayKey(start), options.before ?? dayKey(end - 1), true, options.before === undefined)
+    .reverse()
+    .limit(limit + 1)
+    .toArray();
 
-  const pages = await db.pages.bulkGet([...new Set(visits.map((visit) => visit.url))]);
+  const page = rows.slice(0, limit);
+  if (page.length === 0) return { days: [], hasMore: false };
+
+  const visitsPerDay = await Promise.all(
+    page.map((row) => {
+      const dayStart = parseDayKey(row.date) ?? startOfDay(start);
+      return getVisitsBetween(dayStart.getTime(), addDays(dayStart, 1).getTime());
+    }),
+  );
+  const pages = await db.pages.bulkGet([...new Set(visitsPerDay.flat().map((visit) => visit.url))]);
   const pageMap = new Map<string, PageRecord>();
+
   for (const page of pages) {
     if (page) pageMap.set(page.url, page);
   }
 
-  const dayMap = new Map<string, { start: number; entries: Map<string, EntryGroup> }>();
+  const days = page
+    .map((row, index) => buildDayEntries(row.date, visitsPerDay[index] ?? [], pageMap))
+    .filter((day): day is DayEntries => day !== null);
 
-  for (const visit of visits) {
-    const key = dayKey(visit.visitedAt);
-    let day = dayMap.get(key);
-    if (!day) {
-      day = {
-        start: startOfDay(visit.visitedAt).getTime(),
-        entries: new Map<string, EntryGroup>(),
-      };
-      dayMap.set(key, day);
-    }
-
-    const page = pageMap.get(visit.url);
-    const existing = day.entries.get(visit.url);
-
-    if (existing) {
-      existing.count += 1;
-      if (visit.visitedAt > existing.latestVisit) {
-        existing.latestVisit = visit.visitedAt;
-        existing.transition = visit.transition;
-      }
-    } else {
-      day.entries.set(visit.url, {
-        url: visit.url,
-        title: page?.title || visit.url,
-        host: page?.host || visit.host,
-        latestVisit: visit.visitedAt,
-        count: 1,
-        transition: visit.transition,
-      });
-    }
-  }
-
-  return [...dayMap.entries()]
-    .sort(([left], [right]) => right.localeCompare(left))
-    .map(([date, day]) => ({
-      date,
-      start: day.start,
-      entries: [...day.entries.values()].sort(
-        (left, right) => right.latestVisit - left.latestVisit,
-      ),
-    }));
+  return { days, hasMore: rows.length > limit };
 }
 
 export async function getRecentPages(limit = 8): Promise<PageRecord[]> {
@@ -99,22 +93,9 @@ export async function getCalendarActivity(
   start: number,
   end: number,
 ): Promise<Map<string, CalendarDayActivity>> {
-  const visits = await getVisitsBetween(start, end);
-  const days = new Map<string, { views: number; pages: Set<string> }>();
-
-  for (const visit of visits) {
-    const key = dayKey(visit.visitedAt);
-    let day = days.get(key);
-    if (!day) {
-      day = { views: 0, pages: new Set() };
-      days.set(key, day);
-    }
-    day.views += 1;
-    day.pages.add(visit.url);
-  }
-
+  const days = await getDayActivity(start, end);
   return new Map(
-    [...days.entries()].map(([key, day]) => [key, { views: day.views, pages: day.pages.size }]),
+    [...days.entries()].map(([date, day]) => [date, { views: day.views, pages: day.pages }]),
   );
 }
 
@@ -124,16 +105,17 @@ export async function getVaultCounts(): Promise<{ pages: number; visits: number 
 }
 
 export async function deleteUrlFromVault(url: string, date?: Date | number): Promise<void> {
-  if (date === undefined) {
-    const ids = await db.visits.where('url').equals(url).primaryKeys();
-    if (ids.length > 0) await db.visits.bulkDelete(ids);
-  } else {
-    const range = getDayRange(date);
-    const ids = await db.visits
-      .where('[url+visitedAt]')
-      .between([url, range.start], [url, range.end], true, false)
-      .primaryKeys();
-    if (ids.length > 0) await db.visits.bulkDelete(ids);
+  const visits =
+    date === undefined
+      ? await db.visits.where('url').equals(url).toArray()
+      : await db.visits
+          .where('[url+visitedAt]')
+          .between([url, getDayRange(date).start], [url, getDayRange(date).end], true, false)
+          .toArray();
+
+  if (visits.length > 0) {
+    await db.visits.bulkDelete(visits.map((visit) => visit.id));
+    await recomputeActivityForVisits(visits);
   }
 
   await cleanupPage(url);
@@ -153,6 +135,7 @@ export async function deleteUrlVisitsBetween(
   if (visits.length === 0) return;
 
   await db.visits.bulkDelete(visits.map((visit) => visit.id));
+  await recomputeActivityForVisits(visits);
   await cleanupPage(url);
   await bumpVaultRevision();
 }
@@ -182,6 +165,7 @@ export async function deleteDayFromVault(date: Date | number): Promise<void> {
 
   const urls = [...new Set(visits.map((visit) => visit.url))];
   await db.visits.bulkDelete(visits.map((visit) => visit.id));
+  await db.activity.delete(dayKey(range.start));
 
   for (const url of urls) {
     await cleanupPage(url);
@@ -191,10 +175,11 @@ export async function deleteDayFromVault(date: Date | number): Promise<void> {
 }
 
 export async function clearVaultData(): Promise<void> {
-  await db.transaction('rw', db.pages, db.visits, db.meta, async () => {
+  await db.transaction('rw', db.pages, db.visits, db.activity, db.meta, async () => {
     const currentEpoch = await getVaultEpoch();
     await db.pages.clear();
     await db.visits.clear();
+    await db.activity.clear();
     await db.meta.clear();
     await db.meta.put({ key: VAULT_EPOCH_KEY, value: currentEpoch + 1 });
   });
@@ -210,6 +195,46 @@ export async function getStorageEstimate(): Promise<{ usage: number; quota: numb
   } catch {
     return null;
   }
+}
+
+function buildDayEntries(
+  date: string,
+  visits: VisitRecord[],
+  pageMap: Map<string, PageRecord>,
+): DayEntries | null {
+  if (visits.length === 0) return null;
+
+  const entries = new Map<string, EntryGroup>();
+  let start = Number.POSITIVE_INFINITY;
+
+  for (const visit of visits) {
+    start = Math.min(start, startOfDay(visit.visitedAt).getTime());
+    const page = pageMap.get(visit.url);
+    const existing = entries.get(visit.url);
+
+    if (existing) {
+      existing.count += 1;
+      if (visit.visitedAt > existing.latestVisit) {
+        existing.latestVisit = visit.visitedAt;
+        existing.transition = visit.transition;
+      }
+    } else {
+      entries.set(visit.url, {
+        url: visit.url,
+        title: page?.title || visit.url,
+        host: page?.host || visit.host,
+        latestVisit: visit.visitedAt,
+        count: 1,
+        transition: visit.transition,
+      });
+    }
+  }
+
+  return {
+    date,
+    start: Number.isFinite(start) ? start : 0,
+    entries: [...entries.values()].sort((left, right) => right.latestVisit - left.latestVisit),
+  };
 }
 
 async function cleanupPage(url: string): Promise<void> {

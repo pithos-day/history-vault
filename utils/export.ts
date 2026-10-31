@@ -1,5 +1,6 @@
 import { dayKey } from './date';
 import { db } from './db';
+import { rebuildDayActivity } from './history/activity';
 import type { PageRecord, VisitRecord } from './history/types';
 import { bumpVaultRevision } from './vault-events';
 
@@ -79,6 +80,7 @@ async function importVaultJson(
     onProgress?.(processed, total);
   }
 
+  await rebuildDayActivity();
   await bumpVaultRevision();
   return { pages: parsed.pages.length, visits: parsed.visits.length };
 }

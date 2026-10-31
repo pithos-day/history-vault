@@ -1,5 +1,5 @@
 import { ChevronDown as ChevronDownIcon, Trash2 as TrashIcon } from 'lucide-react';
-import { type MouseEvent, useCallback, useMemo, useState } from 'react';
+import { type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { formatCount, formatDateGroupHeader } from '@/utils/date';
 import type { DayEntries, EntryGroup } from '@/utils/history/types';
 import { buildListRows, type HistoryListRow } from '../lib/listRows';
@@ -9,6 +9,8 @@ import { VirtualList } from './VirtualList';
 interface GroupedHistoryListProps {
   days: DayEntries[];
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   emptyText: string;
   ariaLabel: string;
   focusDate?: string;
@@ -16,11 +18,14 @@ interface GroupedHistoryListProps {
   onOpen: (url: string) => void;
   onContextMenu: (entry: EntryGroup, event: MouseEvent) => void;
   onDeleteDay?: (date: Date) => void;
+  onLoadMore?: () => void;
 }
 
 export function GroupedHistoryList({
   days,
   loading,
+  loadingMore = false,
+  hasMore = false,
   emptyText,
   ariaLabel,
   focusDate,
@@ -28,6 +33,7 @@ export function GroupedHistoryList({
   onOpen,
   onContextMenu,
   onDeleteDay,
+  onLoadMore,
 }: GroupedHistoryListProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const rows = useMemo(() => buildListRows(days, collapsed), [days, collapsed]);
@@ -52,8 +58,17 @@ export function GroupedHistoryList({
     });
   }, []);
 
+  useEffect(() => {
+    if (focusToken === 0 || !focusDate || loading || !hasMore || loadingMore || !onLoadMore) {
+      return;
+    }
+
+    const reached = rows.some((row) => row.type === 'header' && row.date <= focusDate);
+    if (!reached) onLoadMore();
+  }, [focusDate, focusToken, hasMore, loading, loadingMore, onLoadMore, rows]);
+
   return (
-    <section aria-label={ariaLabel} className="grouped-list">
+    <section aria-busy={loading || loadingMore} aria-label={ariaLabel} className="grouped-list">
       <div aria-hidden="true" className="list-columns">
         <span className="list-column-date">日付</span>
         <span className="list-column-title">タイトル</span>
@@ -68,6 +83,7 @@ export function GroupedHistoryList({
         }
         items={rows}
         key={days[0]?.date ?? 'empty'}
+        onEndReached={hasMore ? onLoadMore : undefined}
         renderItem={(row) =>
           row.type === 'header' ? (
             <DateGroupHeader onDeleteDay={onDeleteDay} onToggle={toggleDay} row={row} />
