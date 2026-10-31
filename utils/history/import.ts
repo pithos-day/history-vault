@@ -199,7 +199,7 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
 export async function cancelImport(): Promise<void> {
   const state = await getImportState();
   await saveImportState({ ...state, phase: 'idle', updatedAt: Date.now() });
-  await releaseImportLock('');
+  await forceReleaseImportLock();
 }
 
 /**
@@ -309,8 +309,11 @@ async function renewImportLock(owner: string): Promise<boolean> {
 async function releaseImportLock(owner: string): Promise<void> {
   const result = await browser.storage.local.get(IMPORT_LOCK_KEY);
   const current = result[IMPORT_LOCK_KEY] as ImportLock | undefined;
-  if (!current) return;
-  if (owner && current.owner !== owner) return;
+  if (!current || current.owner !== owner) return;
+  await browser.storage.local.remove(IMPORT_LOCK_KEY);
+}
+
+async function forceReleaseImportLock(): Promise<void> {
   await browser.storage.local.remove(IMPORT_LOCK_KEY);
 }
 
