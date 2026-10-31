@@ -88,25 +88,30 @@ export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): st
 
     for (const [index, visit] of group.entries()) {
       const titled = isUsableTitle(visit.title, visit.url);
-
       const replacement = group
         .slice(index + 1)
-        .find(
-          (candidate) =>
-            candidate.url !== visit.url &&
-            candidate.visitedAt - visit.visitedAt <= CHAIN_WINDOW_MS &&
-            candidate.visitedAt >= visit.visitedAt &&
-            isUsableTitle(candidate.title, candidate.url) &&
-            (titled
-              ? isTrackingOnlyVariant(visit.url, candidate.url)
-              : sharesQueryValue(visit.url, candidate.url)),
-        );
+        .find((candidate) => isReplacementFor(visit, candidate, titled));
 
       if (replacement) ids.push(visit.id);
     }
   }
 
   return ids;
+}
+
+function isReplacementFor(
+  previous: SameDocumentVisit,
+  candidate: SameDocumentVisit,
+  titled: boolean,
+): boolean {
+  if (candidate.url === previous.url) return false;
+  if (candidate.visitedAt < previous.visitedAt) return false;
+  if (candidate.visitedAt - previous.visitedAt > CHAIN_WINDOW_MS) return false;
+  if (!isUsableTitle(candidate.title, candidate.url)) return false;
+
+  return titled
+    ? isTrackingOnlyVariant(previous.url, candidate.url)
+    : sharesQueryValue(previous.url, candidate.url);
 }
 
 function sharesQueryValue(leftUrl: string, rightUrl: string): boolean {
