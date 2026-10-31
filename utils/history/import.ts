@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { dayKey, startOfDay, startOfNextDay } from '../date';
+import { delay } from '../delay';
 import { getSettings } from '../settings';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
@@ -323,8 +324,4 @@ export function isImportState(value: unknown): value is ImportState {
     typeof (value as { phase?: unknown }).phase === 'string' &&
     typeof (value as { cursorEnd?: unknown }).cursorEnd === 'number'
   );
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
