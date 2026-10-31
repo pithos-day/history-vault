@@ -26,12 +26,7 @@ export function loadViewState(): ViewState {
       typeof parsed.calendarVisible === 'boolean' ? parsed.calendarVisible : true;
     // Older versions stored a view mode and defaulted the stats panel to open.
     // The list+calendar layout now starts with the panel closed.
-    const statsVisible =
-      'view' in parsed
-        ? false
-        : typeof parsed.statsVisible === 'boolean'
-          ? parsed.statsVisible
-          : false;
+    const statsVisible = !('view' in parsed) && parsed.statsVisible === true;
 
     return { selectedDate, calendarVisible, statsVisible };
   } catch {

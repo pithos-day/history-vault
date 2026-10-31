@@ -166,12 +166,7 @@ export function SettingsDialog({
               <select
                 onChange={(event) =>
                   void onUpdate({
-                    importWindowDays:
-                      Number(event.target.value) === 0
-                        ? 0
-                        : Number(event.target.value) === 365
-                          ? 365
-                          : 90,
+                    importWindowDays: toImportWindowDays(event.target.value),
                   })
                 }
                 value={settings.importWindowDays}
@@ -279,4 +274,9 @@ export function SettingsDialog({
       </div>
     </div>
   );
+}
+
+function toImportWindowDays(value: string): Settings['importWindowDays'] {
+  const days = Number(value);
+  return days === 0 || days === 365 ? days : 90;
 }

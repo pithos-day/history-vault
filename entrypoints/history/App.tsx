@@ -356,7 +356,7 @@ export default function App() {
 
         {viewState.statsVisible && !searching ? (
           <StatsPanel
-            label={formatInclusiveDateSpan(range.start, range.end)}
+            rangeLabel={title}
             loading={statsLoading}
             onClose={handleToggleStats}
             stats={stats}
