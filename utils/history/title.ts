@@ -1,7 +1,7 @@
 const URL_LIKE_TITLE =
   /^(?:[a-z][a-z0-9+.-]*:\/\/|(?:[\w-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#]|$)|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:[/?#]|$)|localhost(?::\d+)?(?:[/?#]|$))/i;
 
-export function isUrlLikeTitle(title: string | undefined, url: string): boolean {
+function isUrlLikeTitle(title: string | undefined, url: string): boolean {
   const value = title?.trim() ?? '';
   if (!value) return false;
   return value === url || URL_LIKE_TITLE.test(value);

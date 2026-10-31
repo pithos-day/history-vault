@@ -70,11 +70,11 @@ describe('same-document cleanup', () => {
     expect(ids).toEqual(['1']);
   });
 
-  it('keeps visits with a referring visit or a different path', () => {
+  it('keeps visits with a different query or a different path', () => {
     const ids = findSupersededVisitIds([
       {
         id: '1',
-        url: 'https://www.google.com/search?q=sample',
+        url: 'https://www.google.com/search?q=other',
         visitedAt: 1000,
         title: '',
         transition: 'link',
@@ -97,6 +97,29 @@ describe('same-document cleanup', () => {
     ]);
 
     expect(ids).toEqual([]);
+  });
+
+  it('removes an empty-title variant when the search query matches', () => {
+    const ids = findSupersededVisitIds([
+      {
+        id: '1',
+        url: 'https://www.google.com/search?q=sample&oq=sample',
+        visitedAt: 1000,
+        title: '',
+        transition: 'typed',
+        referringVisitId: '9',
+      },
+      {
+        id: '2',
+        url: 'https://www.google.com/search?q=sample&ie=UTF-8',
+        visitedAt: 1200,
+        title: 'sample - Google 検索',
+        transition: 'link',
+        referringVisitId: '8',
+      },
+    ]);
+
+    expect(ids).toEqual(['1']);
   });
 
   it('removes URL-titled variants even when they have a referring visit', () => {
@@ -137,6 +160,69 @@ describe('same-document cleanup', () => {
         url: 'https://example.com/search?a=1&b=2',
         visitedAt: 1200,
         title: '',
+      },
+    ]);
+
+    expect(ids).toEqual([]);
+  });
+
+  it('removes titled variants that only add tracking parameters', () => {
+    const ids = findSupersededVisitIds([
+      {
+        ...base,
+        id: '1',
+        url: 'https://www.google.com/search?q=white&oq=white&ie=UTF-8',
+        visitedAt: 1000,
+        title: 'white - Google 検索',
+      },
+      {
+        ...base,
+        id: '2',
+        url: 'https://www.google.com/search?q=white&oq=white&ie=UTF-8&sca_esv=5b4f&sxsrf=AKly5D&ei=abc&biw=1888&bih=875&uact=5',
+        visitedAt: 1600,
+        title: 'white - Google 検索',
+      },
+    ]);
+
+    expect(ids).toEqual(['1']);
+  });
+
+  it('keeps titled variants whose meaningful query values differ', () => {
+    const ids = findSupersededVisitIds([
+      {
+        ...base,
+        id: '1',
+        url: 'https://www.google.com/search?q=white',
+        visitedAt: 1000,
+        title: 'white - Google 検索',
+      },
+      {
+        ...base,
+        id: '2',
+        url: 'https://www.google.com/search?q=black&ei=abc',
+        visitedAt: 1600,
+        title: 'black - Google 検索',
+      },
+    ]);
+
+    expect(ids).toEqual([]);
+  });
+
+  it('keeps titled variants that add a meaningful query parameter', () => {
+    const ids = findSupersededVisitIds([
+      {
+        ...base,
+        id: '1',
+        url: 'https://www.google.com/search?q=white',
+        visitedAt: 1000,
+        title: 'white - Google 検索',
+      },
+      {
+        ...base,
+        id: '2',
+        url: 'https://www.google.com/search?q=white&start=10',
+        visitedAt: 1600,
+        title: 'white - Google 検索',
       },
     ]);
 

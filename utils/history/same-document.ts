@@ -1,4 +1,4 @@
-import { isUrlLikeTitle, isUsableTitle } from './title';
+import { isUsableTitle } from './title';
 
 export const RECENT_CLEANUP_MS = 7 * 86_400_000;
 
@@ -64,17 +64,17 @@ const CHAIN_WINDOW_MS = 5000;
 
 /**
  * Finds older visits that belong to a same-document URL chain but were written
- * before this extension learned to collapse them. The chain is deliberately
- * conservative: same origin and path, a link visit with an unusable title, and
- * a later titled link visit within five seconds. URL-titled visits qualify even
- * when Chrome reports a referring visit; empty-titled ones need no referrer.
+ * before this extension learned to collapse them. Visits are only grouped when
+ * the URLs differ but share at least one query value, which is typical of a
+ * page rewriting its tracking parameters. An untitled/URL-titled visit is
+ * removed when a titled visit to that same page follows within five seconds.
+ * Titled visits are also removed when the later URL only adds or changes
+ * tracking parameters while every meaningful query value stays the same.
  */
 export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): string[] {
   const groups = new Map<string, SameDocumentVisit[]>();
 
   for (const visit of visits) {
-    if (visit.transition !== 'link') continue;
-
     const key = canonicalPageKey(visit.url);
     if (!key) continue;
 
@@ -89,7 +89,7 @@ export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): st
     group.sort((left, right) => left.visitedAt - right.visitedAt);
 
     for (const [index, visit] of group.entries()) {
-      if (!isSupersededCandidate(visit)) continue;
+      const titled = isUsableTitle(visit.title, visit.url);
 
       const replacement = group
         .slice(index + 1)
@@ -98,7 +98,10 @@ export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): st
             candidate.url !== visit.url &&
             candidate.visitedAt - visit.visitedAt <= CHAIN_WINDOW_MS &&
             candidate.visitedAt >= visit.visitedAt &&
-            isUsableTitle(candidate.title, candidate.url),
+            isUsableTitle(candidate.title, candidate.url) &&
+            (titled
+              ? isTrackingOnlyVariant(visit.url, candidate.url)
+              : sharesQueryValue(visit.url, candidate.url)),
         );
 
       if (replacement) ids.push(visit.id);
@@ -108,9 +111,88 @@ export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): st
   return ids;
 }
 
-function isSupersededCandidate(visit: SameDocumentVisit): boolean {
-  if (isUrlLikeTitle(visit.title, visit.url)) return true;
-  return !visit.referringVisitId || visit.referringVisitId === '0';
+function sharesQueryValue(leftUrl: string, rightUrl: string): boolean {
+  try {
+    const left = new URL(leftUrl);
+    const right = new URL(rightUrl);
+    if (left.search === '' && right.search === '') return true;
+
+    for (const [key, value] of left.searchParams) {
+      if (right.searchParams.get(key) === value) return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Tracking parameters are rewritten in place by scripts without navigating,
+ * so the URL changes while the page (and its title) stays the same.
+ */
+const TRACKING_PARAMS = new Set([
+  'biw',
+  'bih',
+  'dclid',
+  'ei',
+  'fbclid',
+  'gclid',
+  'gbraid',
+  'gs_lcp',
+  'gs_mss',
+  'gs_ssp',
+  'ie',
+  'mc_cid',
+  'mc_eid',
+  'msclkid',
+  'oq',
+  'rlz',
+  'sa',
+  'sca_esv',
+  'sclient',
+  'source',
+  'spm',
+  'sxsrf',
+  'uact',
+  'ved',
+  'wbraid',
+  'yclid',
+]);
+
+const TRACKING_PREFIXES = ['utm_', 'at_', 'pk_', 'mtm_'];
+
+function isTrackingParam(key: string): boolean {
+  const name = key.toLowerCase();
+  return TRACKING_PARAMS.has(name) || TRACKING_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+/**
+ * Returns true when two URLs address the same page and only differ in query
+ * parameters that carry no meaning (tracking, session, viewport hints, ...).
+ * Every other query key must be present on both URLs with the same value, so
+ * changes such as `q=white` -> `q=black` or `page=1` -> `page=2` are kept.
+ */
+function isTrackingOnlyVariant(leftUrl: string, rightUrl: string): boolean {
+  try {
+    const left = new URL(leftUrl);
+    const right = new URL(rightUrl);
+    if (left.origin !== right.origin || left.pathname !== right.pathname) return false;
+    if (left.search === right.search) return false;
+
+    const keys = new Set([...left.searchParams.keys(), ...right.searchParams.keys()]);
+
+    for (const key of keys) {
+      if (isTrackingParam(key)) continue;
+      const leftValue = left.searchParams.get(key);
+      const rightValue = right.searchParams.get(key);
+      if (leftValue === null || rightValue === null || leftValue !== rightValue) return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function canonicalPageKey(url: string): string | null {
