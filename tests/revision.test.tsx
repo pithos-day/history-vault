@@ -15,6 +15,7 @@ describe('vault revision', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
 
   it('stores the changed days with a monotonically increasing sequence', async () => {
@@ -39,6 +40,7 @@ describe('vault revision', () => {
 describe('useDebouncedVaultRevision', () => {
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
 
   it('merges days from rapid revisions instead of dropping the earlier ones', () => {
@@ -98,5 +100,27 @@ describe('useDebouncedVaultRevision', () => {
     });
 
     expect(result.current).toEqual(revision(0));
+  });
+
+  it('defers updates while the page is hidden and flushes on visibility', () => {
+    vi.useFakeTimers();
+    const { result, rerender } = renderHook(
+      ({ value }: { value: VaultRevision }) => useDebouncedVaultRevision(value, 400),
+      { initialProps: { value: revision(0) } },
+    );
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    rerender({ value: revision(1, ['2026-10-07']) });
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(result.current).toEqual(revision(0));
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(result.current).toEqual(revision(1, ['2026-10-07']));
   });
 });
