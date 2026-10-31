@@ -1,6 +1,5 @@
 import { addDays, dayKey, parseDayKey, startOfDay } from '../date';
 import { db } from '../db';
-import { addVisitToDayActivity, toDayActivityRecords } from './day-activity';
 import type { DayActivityRecord, VisitRecord } from './types';
 
 interface VisitDayGroup {
@@ -86,15 +85,11 @@ export async function recomputeActivityForVisits(visits: VisitRecord[]): Promise
   }
 }
 
-export async function rebuildDayActivity(): Promise<void> {
-  await db.transaction('rw', db.activity, db.visits, async () => {
-    const days = new Map<string, { views: number; urls: Set<string> }>();
-    await db.visits.each((visit) => {
-      addVisitToDayActivity(days, visit);
-    });
-    await db.activity.clear();
-    await db.activity.bulkPut(toDayActivityRecords(days));
-  });
+/** Rebuilds only the days touched by an import instead of scanning the vault. */
+export async function recomputeActivityForDates(dates: Iterable<string>): Promise<void> {
+  for (const date of new Set(dates)) {
+    await recomputeDayActivity(date);
+  }
 }
 
 export async function getDayActivity(

@@ -1,7 +1,10 @@
 import { dayKey } from './date';
 import { db } from './db';
-import { rebuildDayActivity } from './history/activity';
+import { recomputeActivityForDates } from './history/activity';
+import { normalizeSearchText } from './history/search';
+import { normalizeTitle } from './history/title';
 import type { PageRecord, VisitRecord } from './history/types';
+import { getHost } from './url';
 import { bumpVaultRevision } from './vault-events';
 
 interface VaultExport {
@@ -10,6 +13,12 @@ interface VaultExport {
   exportedAt: string;
   pages: PageRecord[];
   visits: VisitRecord[];
+}
+
+interface VisitAggregate {
+  count: number;
+  first: number;
+  last: number;
 }
 
 async function serializeVault(): Promise<string> {
@@ -66,23 +75,104 @@ async function importVaultJson(
   const total = parsed.pages.length + parsed.visits.length;
   let processed = 0;
 
-  for (let index = 0; index < parsed.pages.length; index += 500) {
-    const chunk = parsed.pages.slice(index, index + 500);
-    await db.pages.bulkPut(chunk);
-    processed += chunk.length;
-    onProgress?.(processed, total);
-  }
+  // Imported files can be partial (for example a backfill of one month). Keep
+  // only visits whose ids are new and merge their counts into existing pages
+  // instead of overwriting what the vault already knows.
+  const aggregates = new Map<string, VisitAggregate>();
+  const newVisits: VisitRecord[] = [];
+  const activityDates = new Set<string>();
 
   for (let index = 0; index < parsed.visits.length; index += 500) {
     const chunk = parsed.visits.slice(index, index + 500);
-    await db.visits.bulkPut(chunk);
+    const existing = await db.visits.bulkGet(chunk.map((visit) => visit.id));
+
+    for (let offset = 0; offset < chunk.length; offset += 1) {
+      if (existing[offset]) continue;
+      const visit = chunk[offset];
+      if (!visit) continue;
+      const aggregate = aggregates.get(visit.url);
+      if (aggregate) {
+        aggregate.count += 1;
+        aggregate.first = Math.min(aggregate.first, visit.visitedAt);
+        aggregate.last = Math.max(aggregate.last, visit.visitedAt);
+      } else {
+        aggregates.set(visit.url, {
+          count: 1,
+          first: visit.visitedAt,
+          last: visit.visitedAt,
+        });
+      }
+      newVisits.push(visit);
+      activityDates.add(dayKey(visit.visitedAt));
+    }
+
     processed += chunk.length;
     onProgress?.(processed, total);
   }
 
-  await rebuildDayActivity();
-  await bumpVaultRevision();
-  return { pages: parsed.pages.length, visits: parsed.visits.length };
+  for (let index = 0; index < parsed.pages.length; index += 500) {
+    const chunk = parsed.pages.slice(index, index + 500);
+    // Read and merge inside the same transaction so a live visit arriving
+    // between the read and the write cannot lose its page count.
+    await db.transaction('rw', db.pages, async () => {
+      const existingPages = await db.pages.bulkGet(chunk.map((page) => page.url));
+      const merged = chunk.map((page, offset) =>
+        mergePage(page, existingPages[offset], aggregates.get(page.url)),
+      );
+      await db.pages.bulkPut(merged);
+    });
+    processed += chunk.length;
+    onProgress?.(processed, total);
+  }
+
+  if (newVisits.length > 0) {
+    await db.visits.bulkPut(newVisits);
+    await recomputeActivityForDates(activityDates);
+  }
+
+  if (newVisits.length > 0 || parsed.pages.length > 0) await bumpVaultRevision();
+  return { pages: parsed.pages.length, visits: newVisits.length };
+}
+
+/**
+ * When a file only touches part of a page's history, its own first/last times
+ * are just the bounds of the imported slice. Combine them with the record that
+ * is already stored so the page keeps full-history aggregates.
+ */
+function mergePage(
+  page: PageRecord,
+  existing: PageRecord | undefined,
+  aggregate: VisitAggregate | undefined,
+): PageRecord {
+  const url = page.url;
+  const host = getHost(url);
+  const fallback = {
+    ...page,
+    host,
+    titleLower: normalizeSearchText(page.title),
+    urlLower: normalizeSearchText(url),
+  };
+
+  if (!aggregate) {
+    if (!existing) return fallback;
+
+    const title = normalizeTitle(page.title, existing.title, url);
+    return title === existing.title
+      ? existing
+      : { ...existing, title, titleLower: normalizeSearchText(title) };
+  }
+
+  const title = normalizeTitle(page.title, existing?.title, url);
+  return {
+    url,
+    title,
+    host,
+    titleLower: normalizeSearchText(title),
+    urlLower: normalizeSearchText(url),
+    firstVisitTime: Math.min(existing?.firstVisitTime ?? aggregate.first, aggregate.first),
+    lastVisitTime: Math.max(existing?.lastVisitTime ?? aggregate.last, aggregate.last),
+    visitCount: (existing?.visitCount ?? 0) + aggregate.count,
+  };
 }
 
 export async function importVaultFile(
