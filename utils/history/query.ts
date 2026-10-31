@@ -164,6 +164,18 @@ export async function getCalendarActivity(
   );
 }
 
+/** Reads only the days named by a revision so the calendar can patch itself. */
+export async function getCalendarActivityForDates(
+  dates: readonly string[],
+): Promise<Map<string, CalendarDayActivity>> {
+  if (dates.length === 0) return new Map();
+
+  const rows = (await db.activity.bulkGet([...new Set(dates)])).filter(
+    (row): row is DayActivityRecord => row !== undefined,
+  );
+  return new Map(rows.map((day) => [day.date, { views: day.views, pages: day.pages }]));
+}
+
 export async function getVaultCounts(): Promise<{ pages: number; visits: number }> {
   const [pages, days] = await Promise.all([db.pages.count(), db.activity.toArray()]);
   if (days.length === 0) {

@@ -95,7 +95,7 @@ export default function App() {
     loadMore: loadMoreEntries,
   } = useEntriesInRange(range.start, range.end, dataRevision, !searching);
   const { results, loading: searchLoading } = useSearch(query, revisionSeq);
-  const { activity: calendarActivity, bounds } = useVaultOverview(revisionSeq);
+  const { activity: calendarActivity, bounds } = useVaultOverview(dataRevision);
   const calendarMonths = useMemo(
     () => buildCalendarMonths(bounds, selectedDate),
     [bounds, selectedDate],

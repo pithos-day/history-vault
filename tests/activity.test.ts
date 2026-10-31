@@ -8,6 +8,7 @@ import {
   deleteUrlFromVault,
   deleteUrlVisitsBetween,
   getCalendarActivity,
+  getCalendarActivityForDates,
   getDayEntriesForDates,
   getEntryDaysPage,
   removeRedirectedVisits,
@@ -83,6 +84,17 @@ describe('day activity summary', () => {
     });
     expect(second.days.map((day) => day.date)).toEqual([dayKey(older)]);
     expect(second.hasMore).toBe(false);
+  });
+
+  it('reads only the calendar days named by a revision', async () => {
+    const older = new Date(2026, 9, 14, 9).getTime();
+    const newer = new Date(2026, 9, 15, 9).getTime();
+    await ingest('https://older.test/', 'Older', [visit('older', older)]);
+    await ingest('https://newer.test/', 'Newer', [visit('newer', newer)]);
+
+    const changed = await getCalendarActivityForDates([dayKey(newer), '2026-10-01']);
+
+    expect([...changed.entries()]).toEqual([[dayKey(newer), { views: 1, pages: 1 }]]);
   });
 
   it('rebuilds only the requested days for a revision update', async () => {
