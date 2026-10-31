@@ -50,31 +50,9 @@ export function useEntriesInRange(
       const entries = await getDayEntriesForDates(inRange);
       if (token !== requestRef.current) return;
 
-      const current = daysRef.current;
-      if (current.length === 0) return;
-
-      const changed = new Map(entries.map((day) => [day.date, day]));
-      const oldest = current[current.length - 1]?.date ?? '';
-      const next = new Map(current.map((day) => [day.date, day]));
-
-      for (const date of inRange) {
-        const day = changed.get(date);
-        if (day) {
-          if (next.has(date) || date >= oldest) next.set(date, day);
-        } else {
-          next.delete(date);
-        }
-      }
-
-      const merged = [...next.values()].sort((left, right) => right.date.localeCompare(left.date));
-      if (
-        merged.length === current.length &&
-        merged.every((day, index) => day === current[index])
-      ) {
-        return;
-      }
-
-      commitDays(merged);
+      const next = mergeChangedDays(daysRef.current, entries, inRange);
+      if (next === daysRef.current) return;
+      commitDays(next);
     },
     [commitDays, start, end],
   );
@@ -105,20 +83,19 @@ export function useEntriesInRange(
       return;
     }
 
-    const rangeChanged = initialLoadRef.current || rangeRef.current !== rangeKey;
-    const reset =
-      revision.reset && revision !== appliedRevisionRef.current && !loadingFullRef.current;
-    // An empty range has no loaded days to patch, so a new revision (for
-    // example the first visit of the month) has to start the page load again.
-    const reloadEmpty =
-      !rangeChanged &&
-      !reset &&
-      !loadingFullRef.current &&
-      revision !== appliedRevisionRef.current &&
-      daysRef.current.length === 0 &&
-      (revision.days.length === 0 || hasDayInRange(revision.days, start, end));
+    const reload = shouldReloadRange({
+      initialLoad: initialLoadRef.current,
+      currentRangeKey: rangeRef.current,
+      nextRangeKey: rangeKey,
+      revision,
+      appliedRevision: appliedRevisionRef.current,
+      loadingFull: loadingFullRef.current,
+      loadedDayCount: daysRef.current.length,
+      start,
+      end,
+    });
 
-    if (!rangeChanged && !reset && !reloadEmpty) {
+    if (!reload) {
       if (revision === appliedRevisionRef.current) return;
       appliedRevisionRef.current = revision;
 
@@ -197,6 +174,65 @@ export function useEntriesInRange(
   }, [commitDays, enabled, end, hasMore, loading, loadingMore, start]);
 
   return { days, loading, loadingMore, hasMore, loadMore };
+}
+
+interface RangeReloadInput {
+  initialLoad: boolean;
+  currentRangeKey: string;
+  nextRangeKey: string;
+  revision: VaultRevision;
+  appliedRevision: VaultRevision;
+  loadingFull: boolean;
+  loadedDayCount: number;
+  start: number;
+  end: number;
+}
+
+/**
+ * A full page load is needed when the range changes, the vault resets, or an
+ * empty range receives its first visit. Otherwise a revision only patches the
+ * days it names.
+ */
+function shouldReloadRange(input: RangeReloadInput): boolean {
+  if (input.initialLoad || input.currentRangeKey !== input.nextRangeKey) return true;
+  if (input.loadingFull) return false;
+  if (input.revision === input.appliedRevision) return false;
+  if (input.revision.reset) return true;
+  if (input.loadedDayCount > 0) return false;
+
+  return (
+    input.revision.days.length === 0 || hasDayInRange(input.revision.days, input.start, input.end)
+  );
+}
+
+/**
+ * Applies a revision patch to the loaded days. Returns the original array when
+ * nothing changed, so callers can keep reference equality.
+ */
+function mergeChangedDays(
+  current: DayEntries[],
+  changed: DayEntries[],
+  dates: readonly string[],
+): DayEntries[] {
+  if (current.length === 0) return current;
+
+  const oldest = current[current.length - 1]?.date ?? '';
+  const changedByDate = new Map(changed.map((day) => [day.date, day]));
+  const next = new Map(current.map((day) => [day.date, day]));
+
+  for (const date of dates) {
+    const day = changedByDate.get(date);
+    if (day) {
+      if (next.has(date) || date >= oldest) next.set(date, day);
+    } else {
+      next.delete(date);
+    }
+  }
+
+  const merged = [...next.values()].sort((left, right) => right.date.localeCompare(left.date));
+  const unchanged =
+    merged.length === current.length && merged.every((day, index) => day === current[index]);
+  return unchanged ? current : merged;
 }
 
 function mergePendingDays(
