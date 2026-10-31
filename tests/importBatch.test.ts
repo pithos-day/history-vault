@@ -3,6 +3,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { db } from '../utils/db';
 import {
   cancelImport,
+  defaultImportState,
   getImportState,
   IMPORT_STATE_KEY,
   runImportBatch,
@@ -94,5 +95,13 @@ describe('import batch', () => {
         phase: 'idle',
       },
     );
+  });
+
+  it('ignores a stored state whose phase is unknown', async () => {
+    await fakeBrowser.storage.local.set({
+      [IMPORT_STATE_KEY]: { ...defaultImportState(NOW), phase: 'bogus' },
+    });
+
+    expect((await getImportState()).phase).toBe('idle');
   });
 });

@@ -1,5 +1,6 @@
 import type { Browser } from 'wxt/browser';
 import { browser } from 'wxt/browser';
+import { isOneOf } from './validation';
 
 export type ThemeSetting = 'system' | 'light' | 'dark';
 type WeekStart = 0 | 1;
@@ -13,6 +14,8 @@ export interface Settings {
 }
 
 const SETTINGS_KEY = 'settings';
+const THEMES = ['system', 'light', 'dark'] as const;
+const IMPORT_WINDOWS = [90, 365, 0] as const;
 
 export const DEFAULT_SETTINGS: Settings = {
   mirrorBrowserDeletes: false,
@@ -55,5 +58,18 @@ export function subscribeSettings(listener: (settings: Settings) => void): () =>
 }
 
 function isSettings(value: unknown): value is Partial<Settings> {
-  return typeof value === 'object' && value !== null;
+  if (typeof value !== 'object' || value === null) return false;
+
+  const settings = value as Partial<Record<keyof Settings, unknown>>;
+  return (
+    (settings.mirrorBrowserDeletes === undefined ||
+      typeof settings.mirrorBrowserDeletes === 'boolean') &&
+    (settings.theme === undefined || isOneOf(settings.theme, THEMES)) &&
+    (settings.weekStartsOn === undefined ||
+      settings.weekStartsOn === 0 ||
+      settings.weekStartsOn === 1) &&
+    (settings.importWindowDays === undefined ||
+      isOneOf(settings.importWindowDays, IMPORT_WINDOWS)) &&
+    (settings.onboardingDone === undefined || typeof settings.onboardingDone === 'boolean')
+  );
 }

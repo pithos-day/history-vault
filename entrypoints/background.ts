@@ -5,6 +5,7 @@ import {
   defaultImportState,
   ensureImportStarted,
   IMPORT_STATE_KEY,
+  isImportState,
   runImportBatch,
   saveImportState,
   startImport,
@@ -234,12 +235,4 @@ async function syncBadge(state: ImportState): Promise<void> {
     state.daysTotal > 0 ? Math.min(99, Math.round((state.daysDone / state.daysTotal) * 100)) : 0;
   await browser.action.setBadgeBackgroundColor({ color: '#ef3939' });
   await browser.action.setBadgeText({ text: progress > 0 ? `${progress}%` : '…' });
-}
-
-function isImportState(value: unknown): value is ImportState {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { phase?: unknown }).phase === 'string'
-  );
 }

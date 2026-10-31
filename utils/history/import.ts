@@ -2,6 +2,7 @@ import { browser } from 'wxt/browser';
 import { dayKey, startOfDay, startOfNextDay } from '../date';
 import { delay } from '../delay';
 import { getSettings } from '../settings';
+import { isOneOf } from '../validation';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
 import { getVaultEpoch } from './epoch';
@@ -24,6 +25,7 @@ const IMPORT_BATCH_MS = 15_000;
 // Full-history scans stop after this many consecutive days with no pages.
 // Chrome's 90-day retention makes longer gaps unlikely to contain more data.
 const EMPTY_DAY_STREAK_LIMIT = 60;
+const IMPORT_PHASES = ['idle', 'running', 'done', 'error'] as const;
 
 interface ImportLock {
   owner: string;
@@ -318,10 +320,20 @@ async function releaseImportLock(owner: string): Promise<void> {
 }
 
 export function isImportState(value: unknown): value is ImportState {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const state = value as Partial<Record<keyof ImportState, unknown>>;
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { phase?: unknown }).phase === 'string' &&
-    typeof (value as { cursorEnd?: unknown }).cursorEnd === 'number'
+    isOneOf(state.phase, IMPORT_PHASES) &&
+    typeof state.startedAt === 'number' &&
+    typeof state.updatedAt === 'number' &&
+    typeof state.cursorEnd === 'number' &&
+    typeof state.windowStart === 'number' &&
+    typeof state.daysDone === 'number' &&
+    typeof state.daysTotal === 'number' &&
+    typeof state.pages === 'number' &&
+    typeof state.visits === 'number' &&
+    typeof state.emptyStreak === 'number' &&
+    (state.error === undefined || typeof state.error === 'string')
   );
 }
