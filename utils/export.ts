@@ -202,6 +202,8 @@ function isPageRecord(value: unknown): value is PageRecord {
     typeof page.url === 'string' &&
     typeof page.title === 'string' &&
     typeof page.host === 'string' &&
+    typeof page.titleLower === 'string' &&
+    typeof page.urlLower === 'string' &&
     typeof page.lastVisitTime === 'number' &&
     typeof page.firstVisitTime === 'number' &&
     typeof page.visitCount === 'number'
@@ -217,6 +219,7 @@ function isVisitRecord(value: unknown): value is VisitRecord {
     typeof visit.host === 'string' &&
     typeof visit.visitedAt === 'number' &&
     typeof visit.transition === 'string' &&
+    (visit.referringVisitId === undefined || typeof visit.referringVisitId === 'string') &&
     (visit.source === 'live' || visit.source === 'import' || visit.source === 'fallback')
   );
 }

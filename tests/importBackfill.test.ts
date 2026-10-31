@@ -80,4 +80,33 @@ describe('vault JSON backfill', () => {
     expect((await db.pages.get(url))?.visitCount).toBe(2);
     expect((await db.activity.get(dayKey(january)))?.views).toBe(2);
   });
+
+  it('rejects a page that lacks search fields', async () => {
+    const file = new File(
+      [
+        JSON.stringify({
+          format: 'history-vault',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          pages: [
+            {
+              url,
+              title: 'Missing search fields',
+              host: 'example.com',
+              firstVisitTime: february,
+              lastVisitTime: february,
+              visitCount: 1,
+            },
+          ],
+          visits: [],
+        }),
+      ],
+      'missing-search-fields.json',
+      { type: 'application/json' },
+    );
+
+    await expect(importVaultFile(file)).rejects.toThrow(
+      'History Vaultのエクスポート形式ではありません。',
+    );
+  });
 });
