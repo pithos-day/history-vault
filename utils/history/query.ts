@@ -16,7 +16,7 @@ import type {
   VisitRecord,
 } from './types';
 
-const ENTRY_PAGE_DAYS = 7;
+export const ENTRY_PAGE_DAYS = 7;
 
 export interface EntryDaysPage {
   days: DayEntries[];

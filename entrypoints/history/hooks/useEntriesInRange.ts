@@ -1,12 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect -- data fetching hooks reset loading state when inputs change. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dayKey, parseDayKey } from '@/utils/date';
-import { getDayEntriesForDates, getEntryDaysPage } from '@/utils/history/query';
+import { ENTRY_PAGE_DAYS, getDayEntriesForDates, getEntryDaysPage } from '@/utils/history/query';
 import type { DayEntries } from '@/utils/history/types';
 import type { VaultRevision } from '@/utils/vault-events';
 
 const INITIAL_DAYS = 1;
-const PAGE_DAYS = 7;
 
 interface EntriesInRangeResult {
   days: DayEntries[];
@@ -156,7 +155,7 @@ export function useEntriesInRange(
     const request = requestRef.current;
     setLoadingMore(true);
 
-    void getEntryDaysPage(start, end, { limit: PAGE_DAYS, before: oldest })
+    void getEntryDaysPage(start, end, { limit: ENTRY_PAGE_DAYS, before: oldest })
       .then((page) => {
         if (request !== requestRef.current) return;
         const known = new Set(daysRef.current.map((day) => day.date));
