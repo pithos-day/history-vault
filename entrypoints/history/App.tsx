@@ -191,17 +191,10 @@ export default function App() {
     setFocusToken((current) => current + 1);
   }, []);
 
-  const handlePrevious = useCallback(() => {
+  const shiftSelectedMonth = useCallback((delta: number) => {
     setViewState((current) => ({
       ...current,
-      selectedDate: shiftMonth(new Date(current.selectedDate), -1).getTime(),
-    }));
-  }, []);
-
-  const handleNext = useCallback(() => {
-    setViewState((current) => ({
-      ...current,
-      selectedDate: shiftMonth(new Date(current.selectedDate), 1).getTime(),
+      selectedDate: shiftMonth(new Date(current.selectedDate), delta).getTime(),
     }));
   }, []);
 
@@ -295,9 +288,9 @@ export default function App() {
     <div className="app">
       <TopBar
         calendarVisible={viewState.calendarVisible}
-        onNext={handleNext}
+        onNext={() => shiftSelectedMonth(1)}
         onOpenSettings={() => setSettingsOpen(true)}
-        onPrevious={handlePrevious}
+        onPrevious={() => shiftSelectedMonth(-1)}
         onQueryChange={setQuery}
         onToday={handleToday}
         onToggleCalendar={handleToggleCalendar}
