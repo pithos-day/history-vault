@@ -25,6 +25,8 @@ export function useRangeStats(
 
     let active = true;
     setLoading(true);
+    // Any vault change can alter the range stats, so re-run when the revision
+    // changes even though its value is not used by the query.
     void revision;
     setError(null);
 

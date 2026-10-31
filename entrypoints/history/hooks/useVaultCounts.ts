@@ -7,6 +7,7 @@ export function useVaultCounts(revision: VaultRevision): { pages: number; visits
 
   useEffect(() => {
     let active = true;
+    // Counts change with every vault revision; the value is only a trigger.
     void revision;
     void getVaultCounts().then((value) => {
       if (active) setCounts(value);

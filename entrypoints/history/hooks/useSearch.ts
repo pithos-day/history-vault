@@ -21,6 +21,8 @@ export function useSearch(
 
     let active = true;
     setLoading(true);
+    // Search results can change after any vault edit, so re-run on revision
+    // changes even though the query does not read the revision itself.
     void revision;
 
     const timer = setTimeout(() => {
