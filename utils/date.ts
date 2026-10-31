@@ -83,30 +83,12 @@ export function getDayRange(input: Date | number): { start: number; end: number 
   };
 }
 
-/** Returns the half-open range [start, end) for the given month. */
+/** Returns the half-open range [start, end) for the month containing the input. */
 export function getMonthRange(input: Date | number): { start: number; end: number } {
   return {
     start: startOfMonth(input).getTime(),
     end: startOfNextMonth(input).getTime(),
   };
-}
-
-/** Returns the half-open range [start, end) for the week containing the input. */
-export function getWeekRange(
-  input: Date | number,
-  weekStartsOn: 0 | 1 = 0,
-): { start: number; end: number } {
-  const start = startOfWeek(input, weekStartsOn);
-  return {
-    start: start.getTime(),
-    end: addCalendarDays(start, 7).getTime(),
-  };
-}
-
-export function getMonthGrid(input: Date | number, weekStartsOn: 0 | 1 = 0): Date[] {
-  const first = startOfMonth(input);
-  const gridStart = startOfWeek(first, weekStartsOn);
-  return Array.from({ length: 42 }, (_, index) => addCalendarDays(gridStart, index));
 }
 
 export function isSameMonth(a: Date | number, b: Date | number): boolean {

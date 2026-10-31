@@ -5,34 +5,24 @@ import {
   formatDateGroupHeader,
   formatInclusiveDateSpan,
   formatTimeWithSeconds,
-  getMonthGrid,
   getMonthRange,
-  getWeekRange,
   parseDayKey,
   startOfDay,
+  startOfWeek,
 } from '../utils/date';
 
 describe('date helpers', () => {
-  it('builds a six-week grid starting on Sunday', () => {
-    const grid = getMonthGrid(new Date(2025, 8, 1));
-
-    expect(grid).toHaveLength(42);
-    expect(dayKey(grid[0] as Date)).toBe('2025-08-31');
-    expect(dayKey(grid[41] as Date)).toBe('2025-10-11');
-  });
-
   it('builds a month range with an exclusive end', () => {
     const range = getMonthRange(new Date(2025, 8, 15));
     expect(dayKey(range.start)).toBe('2025-09-01');
     expect(dayKey(range.end)).toBe('2025-10-01');
   });
 
-  it('builds a week range from the configured start day', () => {
-    const sunday = getWeekRange(new Date(2025, 8, 25), 0);
-    const monday = getWeekRange(new Date(2025, 8, 25), 1);
+  it('finds the start of the week from the configured day', () => {
+    const date = new Date(2025, 8, 25);
 
-    expect(dayKey(sunday.start)).toBe('2025-09-21');
-    expect(dayKey(monday.start)).toBe('2025-09-22');
+    expect(dayKey(startOfWeek(date, 0))).toBe('2025-09-21');
+    expect(dayKey(startOfWeek(date, 1))).toBe('2025-09-22');
   });
 
   it('parses valid day keys and rejects invalid dates', () => {

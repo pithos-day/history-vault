@@ -1,6 +1,6 @@
 import { addCalendarDays, dayKey, parseDayKey, startOfDay } from '../date';
 import { db } from '../db';
-import type { DayActivityRecord, VisitRecord } from './types';
+import type { VisitRecord } from './types';
 
 interface VisitDayGroup {
   date: string;
@@ -90,16 +90,4 @@ export async function recomputeActivityForDates(dates: Iterable<string>): Promis
   for (const date of new Set(dates)) {
     await recomputeDayActivity(date);
   }
-}
-
-export async function getDayActivity(
-  start: number,
-  end: number,
-): Promise<Map<string, DayActivityRecord>> {
-  const rows = await db.activity
-    .where('date')
-    .between(dayKey(start), dayKey(end - 1), true, true)
-    .toArray();
-
-  return new Map(rows.map((row) => [row.date, row]));
 }

@@ -1,7 +1,7 @@
 import { addCalendarDays, dayKey, getDayRange, parseDayKey, startOfDay } from '../date';
 import { db } from '../db';
 import { bumpVaultRevision } from '../vault-events';
-import { getDayActivity, recomputeActivityForVisits } from './activity';
+import { recomputeActivityForVisits } from './activity';
 import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
 import { findSupersededRedirectVisitIds, refreshRedirectMarkers } from './redirects';
@@ -157,16 +157,6 @@ async function getVaultDateBounds(): Promise<{ earliest: number; latest: number 
 
   if (!first || !last) return null;
   return { earliest: first.visitedAt, latest: last.visitedAt };
-}
-
-export async function getCalendarActivity(
-  start: number,
-  end: number,
-): Promise<Map<string, CalendarDayActivity>> {
-  const days = await getDayActivity(start, end);
-  return new Map(
-    [...days.entries()].map(([date, day]) => [date, { views: day.views, pages: day.pages }]),
-  );
 }
 
 /** Reads only the days named by a revision so the calendar can patch itself. */
