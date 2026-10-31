@@ -1,4 +1,5 @@
 import { isUsableTitle } from './title';
+import { SAME_DOCUMENT_WINDOW, windowAround } from './visit-windows';
 
 export const RECENT_CLEANUP_MS = 7 * 86_400_000;
 
@@ -16,8 +17,6 @@ export interface SuppressedVisit {
 
 const MARKER_TTL_MS = 60_000;
 const MAX_MARKERS = 200;
-const WINDOW_BEFORE_MS = 2_000;
-const WINDOW_AFTER_MS = 3_000;
 
 export function suppressVisit(
   markers: readonly SuppressedVisit[],
@@ -27,8 +26,7 @@ export function suppressVisit(
 ): SuppressedVisit[] {
   const marker: SuppressedVisit = {
     url,
-    from: visitedAt - WINDOW_BEFORE_MS,
-    to: visitedAt + WINDOW_AFTER_MS,
+    ...windowAround(visitedAt, SAME_DOCUMENT_WINDOW),
   };
 
   return pruneSuppressedVisits([...markers, marker], now);

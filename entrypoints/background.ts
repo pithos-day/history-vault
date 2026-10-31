@@ -36,6 +36,7 @@ import {
   suppressVisit,
 } from '@/utils/history/same-document';
 import type { ImportState } from '@/utils/history/types';
+import { REDIRECT_WINDOW, SAME_DOCUMENT_WINDOW, windowAround } from '@/utils/history/visit-windows';
 import type { VaultRequest } from '@/utils/messages';
 import { isVaultRequest } from '@/utils/messages';
 import { ensureDefaultSettings, getSettings } from '@/utils/settings';
@@ -227,11 +228,19 @@ async function suppressSupersededPage(page: NavigationSnapshot): Promise<void> {
   suppressedVisits = suppressVisit(suppressedVisits, page.url, page.time);
 
   // onVisited may land before or after this event, so run the cleanup twice.
-  const from = page.time - 2000;
-  const to = page.time + 3000;
-  await deleteUrlVisitsInInclusiveWindow(page.url, from, to);
+  await deleteSameDocumentWindow(page.url, page.time);
   await delay(1500);
-  await deleteUrlVisitsInInclusiveWindow(page.url, from, to);
+  await deleteSameDocumentWindow(page.url, page.time);
+}
+
+async function deleteSameDocumentWindow(url: string, time: number): Promise<void> {
+  const { from, to } = windowAround(time, SAME_DOCUMENT_WINDOW);
+  await deleteUrlVisitsInInclusiveWindow(url, from, to);
+}
+
+async function deleteRedirectWindow(url: string, time: number): Promise<void> {
+  const { from, to } = windowAround(time, REDIRECT_WINDOW);
+  await deleteUrlVisitsInInclusiveWindow(url, from, to);
 }
 
 async function handleVisitRemoved(removed: {
@@ -264,12 +273,12 @@ async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void
   const result = await ingestHistoryItem(item);
 
   if (isSuppressedVisit(suppressedVisits, item.url, visitedAt)) {
-    await deleteUrlVisitsInInclusiveWindow(item.url, visitedAt - 2000, visitedAt + 3000);
+    await deleteSameDocumentWindow(item.url, visitedAt);
     return;
   }
 
   if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, visitedAt)) {
-    await deleteUrlVisitsInInclusiveWindow(item.url, visitedAt - 1000, visitedAt + 2000);
+    await deleteRedirectWindow(item.url, visitedAt);
     return;
   }
 
@@ -296,12 +305,12 @@ async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void
 
   const freshVisitTime = fresh.lastVisitTime ?? visitedAt;
   if (isSuppressedVisit(suppressedVisits, item.url, freshVisitTime)) {
-    await deleteUrlVisitsInInclusiveWindow(item.url, freshVisitTime - 2000, freshVisitTime + 3000);
+    await deleteSameDocumentWindow(item.url, freshVisitTime);
     return;
   }
 
   if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, freshVisitTime)) {
-    await deleteUrlVisitsInInclusiveWindow(item.url, freshVisitTime - 1000, freshVisitTime + 2000);
+    await deleteRedirectWindow(item.url, freshVisitTime);
   }
 }
 

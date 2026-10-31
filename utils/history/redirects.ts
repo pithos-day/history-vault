@@ -1,5 +1,6 @@
 import { db } from '../db';
 import type { RedirectMarker } from './types';
+import { REDIRECT_WINDOW, windowAroundSpan } from './visit-windows';
 
 const REDIRECT_MARKERS_KEY = 'redirectMarkers';
 const MARKER_TTL_MS = 90 * 86_400_000;
@@ -87,8 +88,7 @@ export function findRedirectSource(input: {
 
   return {
     url: candidate.url,
-    from: Math.min(candidate.time, input.targetTime) - 1000,
-    to: Math.max(candidate.time, input.targetTime) + 2000,
+    ...windowAroundSpan(candidate.time, input.targetTime, REDIRECT_WINDOW),
   };
 }
 
