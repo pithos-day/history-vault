@@ -31,6 +31,7 @@ import {
 } from '@/utils/history/redirects';
 import {
   isSuppressedVisit,
+  RECENT_CLEANUP_MS,
   type SuppressedVisit,
   suppressVisit,
 } from '@/utils/history/same-document';
@@ -40,7 +41,6 @@ import { isVaultRequest } from '@/utils/messages';
 import { ensureDefaultSettings, getSettings } from '@/utils/settings';
 
 const IMPORT_ALARM = 'history-vault-import';
-const RECENT_CLEANUP_MS = 7 * 86_400_000;
 
 interface NavigationState {
   before?: NavigationSnapshot;

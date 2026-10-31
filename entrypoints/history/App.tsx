@@ -10,6 +10,8 @@ import {
   isSameMonth,
   startOfMonth,
 } from '@/utils/date';
+import { removeSupersededSameDocumentVisits } from '@/utils/history/query';
+import { RECENT_CLEANUP_MS } from '@/utils/history/same-document';
 import type { EntryGroup } from '@/utils/history/types';
 import { sendVaultMessage } from '@/utils/messages';
 import { isSupportedUrl } from '@/utils/url';
@@ -131,6 +133,11 @@ export default function App() {
 
   useEffect(() => {
     void navigator.storage?.persist?.();
+  }, []);
+
+  useEffect(() => {
+    const end = Date.now();
+    void removeSupersededSameDocumentVisits(end - RECENT_CLEANUP_MS, end).catch(() => {});
   }, []);
 
   useEffect(() => {

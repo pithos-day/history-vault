@@ -1,6 +1,12 @@
 const URL_LIKE_TITLE =
   /^(?:[a-z][a-z0-9+.-]*:\/\/|(?:[\w-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#]|$)|(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:[/?#]|$)|localhost(?::\d+)?(?:[/?#]|$))/i;
 
+export function isUrlLikeTitle(title: string | undefined, url: string): boolean {
+  const value = title?.trim() ?? '';
+  if (!value) return false;
+  return value === url || URL_LIKE_TITLE.test(value);
+}
+
 /**
  * Chrome reports the current/previous URL as the title while a page has not
  * set one yet, especially for same-document navigations. Treat those as
@@ -8,8 +14,7 @@ const URL_LIKE_TITLE =
  */
 export function isUsableTitle(title: string | undefined, url: string): boolean {
   const value = title?.trim() ?? '';
-  if (!value || value === url) return false;
-  return !URL_LIKE_TITLE.test(value);
+  return Boolean(value) && !isUrlLikeTitle(value, url);
 }
 
 export function normalizeTitle(

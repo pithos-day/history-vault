@@ -99,6 +99,29 @@ describe('same-document cleanup', () => {
     expect(ids).toEqual([]);
   });
 
+  it('removes URL-titled variants even when they have a referring visit', () => {
+    const ids = findSupersededVisitIds([
+      {
+        id: '1',
+        url: 'https://www.google.com/search?q=sample',
+        visitedAt: 1000,
+        title: 'https://www.google.com/search?q=sample',
+        transition: 'link',
+        referringVisitId: '9',
+      },
+      {
+        id: '2',
+        url: 'https://www.google.com/search?q=sample&ei=abc',
+        visitedAt: 1200,
+        title: 'sample - Google 検索',
+        transition: 'link',
+        referringVisitId: '8',
+      },
+    ]);
+
+    expect(ids).toEqual(['1']);
+  });
+
   it('keeps a final page that still has no usable title', () => {
     const ids = findSupersededVisitIds([
       {

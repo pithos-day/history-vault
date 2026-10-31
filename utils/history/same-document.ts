@@ -1,4 +1,6 @@
-import { isUsableTitle } from './title';
+import { isUrlLikeTitle, isUsableTitle } from './title';
+
+export const RECENT_CLEANUP_MS = 7 * 86_400_000;
 
 /**
  * Same-document navigations (pushState / replaceState / fragment updates) also
@@ -63,14 +65,15 @@ const CHAIN_WINDOW_MS = 5000;
 /**
  * Finds older visits that belong to a same-document URL chain but were written
  * before this extension learned to collapse them. The chain is deliberately
- * conservative: same origin and path, a link visit without a referring visit,
- * an unusable title, and a later titled visit within five seconds.
+ * conservative: same origin and path, a link visit with an unusable title, and
+ * a later titled link visit within five seconds. URL-titled visits qualify even
+ * when Chrome reports a referring visit; empty-titled ones need no referrer.
  */
 export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): string[] {
   const groups = new Map<string, SameDocumentVisit[]>();
 
   for (const visit of visits) {
-    if (!isSameDocumentCandidate(visit)) continue;
+    if (visit.transition !== 'link') continue;
 
     const key = canonicalPageKey(visit.url);
     if (!key) continue;
@@ -86,7 +89,7 @@ export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): st
     group.sort((left, right) => left.visitedAt - right.visitedAt);
 
     for (const [index, visit] of group.entries()) {
-      if (isUsableTitle(visit.title, visit.url)) continue;
+      if (!isSupersededCandidate(visit)) continue;
 
       const replacement = group
         .slice(index + 1)
@@ -105,8 +108,9 @@ export function findSupersededVisitIds(visits: readonly SameDocumentVisit[]): st
   return ids;
 }
 
-function isSameDocumentCandidate(visit: SameDocumentVisit): boolean {
-  return visit.transition === 'link' && (!visit.referringVisitId || visit.referringVisitId === '0');
+function isSupersededCandidate(visit: SameDocumentVisit): boolean {
+  if (isUrlLikeTitle(visit.title, visit.url)) return true;
+  return !visit.referringVisitId || visit.referringVisitId === '0';
 }
 
 function canonicalPageKey(url: string): string | null {
