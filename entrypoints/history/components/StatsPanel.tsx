@@ -1,5 +1,5 @@
 import { X as CloseIcon } from 'lucide-react';
-import { formatCount, formatDateRange } from '@/utils/date';
+import { formatCount, formatInclusiveDateSpan } from '@/utils/date';
 import type { RangeStats } from '@/utils/history/types';
 import { ActivityChart } from './ActivityChart';
 import { TopDomains } from './TopDomains';
@@ -19,7 +19,7 @@ export function StatsPanel({ stats, loading, label, onClose }: StatsPanelProps) 
         <div>
           <span className="panel-title">統計</span>
           <span className="stats-range">
-            {stats ? formatDateRange(stats.start, stats.end) : label}
+            {stats ? formatInclusiveDateSpan(stats.start, stats.end) : label}
           </span>
         </div>
         <button
@@ -42,7 +42,7 @@ export function StatsPanel({ stats, loading, label, onClose }: StatsPanelProps) 
               <span>{formatCount(stats.views)} 閲覧</span>
             </div>
             <ActivityChart
-              label={formatDateRange(stats.start, stats.end)}
+              label={formatInclusiveDateSpan(stats.start, stats.end)}
               maxViews={stats.maxViews}
               points={stats.series}
             />

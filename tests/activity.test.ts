@@ -6,7 +6,7 @@ import { ingestHistoryItem } from '../utils/history/collect';
 import {
   deleteDayFromVault,
   deleteUrlFromVault,
-  deleteUrlVisitsBetween,
+  deleteUrlVisitsInInclusiveWindow,
   getCalendarActivity,
   getCalendarActivityForDates,
   getDayEntriesForDates,
@@ -118,7 +118,7 @@ describe('day activity summary', () => {
     await ingest('https://a.test/', 'A', [visit('a1', ten), visit('a2', ten + 300_000)]);
     await ingest('https://b.test/', 'B', [visit('b1', ten + 1000)]);
 
-    await deleteUrlVisitsBetween('https://a.test/', ten + 200_000, ten + 400_000);
+    await deleteUrlVisitsInInclusiveWindow('https://a.test/', ten + 200_000, ten + 400_000);
     let activity = await getCalendarActivity(
       startOfDay(ten).getTime(),
       addCalendarDays(ten, 1).getTime(),

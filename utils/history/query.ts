@@ -23,7 +23,8 @@ export interface EntryDaysPage {
   hasMore: boolean;
 }
 
-async function getVisitsBetween(start: number, end: number): Promise<VisitRecord[]> {
+/** Returns visits in the half-open range [start, end). */
+async function getVisitsInHalfOpenRange(start: number, end: number): Promise<VisitRecord[]> {
   return db.visits.where('visitedAt').between(start, end, true, false).toArray();
 }
 
@@ -32,7 +33,7 @@ export async function getRangeStats(
   end: number,
   granularity: 'day' | 'hour' = 'day',
 ): Promise<RangeStats> {
-  const visits = await getVisitsBetween(start, end);
+  const visits = await getVisitsInHalfOpenRange(start, end);
   return aggregateVisits(visits, start, end, granularity);
 }
 
@@ -78,7 +79,7 @@ async function buildDayEntriesForRows(
     rangeEnd = Math.max(rangeEnd, addCalendarDays(dayStart, 1).getTime());
   }
 
-  const visits = await getVisitsBetween(rangeStart, rangeEnd);
+  const visits = await getVisitsInHalfOpenRange(rangeStart, rangeEnd);
   const visitsByDate = new Map<string, VisitRecord[]>();
 
   for (const visit of visits) {
@@ -206,8 +207,8 @@ export async function deleteUrlFromVault(url: string, date?: Date | number): Pro
   await bumpVaultRevision({ days: visits.map((visit) => dayKey(visit.visitedAt)) });
 }
 
-/** Removes only the visits inside the given window, used for redirect cleanup. */
-export async function deleteUrlVisitsBetween(
+/** Deletes visits in the inclusive marker window [start, end]. */
+export async function deleteUrlVisitsInInclusiveWindow(
   url: string,
   start: number,
   end: number,
@@ -234,7 +235,7 @@ export async function removeRedirectedVisits(start: number, end: number): Promis
 
   for (const marker of markers) {
     if (marker.to < start || marker.from >= end) continue;
-    await deleteUrlVisitsBetween(
+    await deleteUrlVisitsInInclusiveWindow(
       marker.url,
       Math.max(marker.from, start),
       Math.min(marker.to, end),
@@ -249,7 +250,7 @@ export async function removeRedirectedVisits(start: number, end: number): Promis
  * webNavigation events.
  */
 export async function removeInferredRedirectVisits(start: number, end: number): Promise<number> {
-  const visits = await getVisitsBetween(start, end);
+  const visits = await getVisitsInHalfOpenRange(start, end);
   if (visits.length < 2) return 0;
 
   return deleteSupersededVisits(visits, findSupersededRedirectVisitIds(visits));
@@ -266,7 +267,7 @@ export async function removeSupersededSameDocumentVisits(
   start: number,
   end: number,
 ): Promise<number> {
-  const visits = await getVisitsBetween(start, end);
+  const visits = await getVisitsInHalfOpenRange(start, end);
   if (visits.length < 2) return 0;
 
   const titleMap = await loadPageTitles(visits);
@@ -279,7 +280,7 @@ export async function removeSupersededSameDocumentVisits(
  * page opened.
  */
 export async function cleanupHistoryRange(start: number, end: number): Promise<void> {
-  const visits = await getVisitsBetween(start, end);
+  const visits = await getVisitsInHalfOpenRange(start, end);
   if (visits.length < 2) return;
 
   const titleMap = await loadPageTitles(visits);
@@ -342,7 +343,7 @@ async function deleteSupersededVisits(
 
 export async function deleteDayFromVault(date: Date | number): Promise<void> {
   const range = getDayRange(date);
-  const visits = await getVisitsBetween(range.start, range.end);
+  const visits = await getVisitsInHalfOpenRange(range.start, range.end);
   if (visits.length === 0) return;
 
   const urls = [...new Set(visits.map((visit) => visit.url))];

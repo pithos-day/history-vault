@@ -17,7 +17,7 @@ import {
   clearVaultData,
   deleteDayFromVault,
   deleteUrlFromVault,
-  deleteUrlVisitsBetween,
+  deleteUrlVisitsInInclusiveWindow,
 } from '@/utils/history/query';
 import {
   addRedirectMarker,
@@ -190,12 +190,12 @@ function getNavigationState(tabId: number, frameId: number): NavigationState {
 
 async function handleRedirectSource(source: RedirectSource): Promise<void> {
   await addRedirectMarker({ url: source.url, from: source.from, to: source.to });
-  await deleteUrlVisitsBetween(source.url, source.from, source.to);
+  await deleteUrlVisitsInInclusiveWindow(source.url, source.from, source.to);
 
   // The intermediate page's onVisited handler can still be finishing when the
   // redirect target commits. Retry once so that late write is cleaned up too.
   await delay(1500);
-  await deleteUrlVisitsBetween(source.url, source.from, source.to);
+  await deleteUrlVisitsInInclusiveWindow(source.url, source.from, source.to);
 }
 
 /**
@@ -229,9 +229,9 @@ async function suppressSupersededPage(page: NavigationSnapshot): Promise<void> {
   // onVisited may land before or after this event, so run the cleanup twice.
   const from = page.time - 2000;
   const to = page.time + 3000;
-  await deleteUrlVisitsBetween(page.url, from, to);
+  await deleteUrlVisitsInInclusiveWindow(page.url, from, to);
   await delay(1500);
-  await deleteUrlVisitsBetween(page.url, from, to);
+  await deleteUrlVisitsInInclusiveWindow(page.url, from, to);
 }
 
 async function handleVisitRemoved(removed: {
@@ -264,12 +264,12 @@ async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void
   const result = await ingestHistoryItem(item);
 
   if (isSuppressedVisit(suppressedVisits, item.url, visitedAt)) {
-    await deleteUrlVisitsBetween(item.url, visitedAt - 2000, visitedAt + 3000);
+    await deleteUrlVisitsInInclusiveWindow(item.url, visitedAt - 2000, visitedAt + 3000);
     return;
   }
 
   if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, visitedAt)) {
-    await deleteUrlVisitsBetween(item.url, visitedAt - 1000, visitedAt + 2000);
+    await deleteUrlVisitsInInclusiveWindow(item.url, visitedAt - 1000, visitedAt + 2000);
     return;
   }
 
@@ -296,12 +296,12 @@ async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void
 
   const freshVisitTime = fresh.lastVisitTime ?? visitedAt;
   if (isSuppressedVisit(suppressedVisits, item.url, freshVisitTime)) {
-    await deleteUrlVisitsBetween(item.url, freshVisitTime - 2000, freshVisitTime + 3000);
+    await deleteUrlVisitsInInclusiveWindow(item.url, freshVisitTime - 2000, freshVisitTime + 3000);
     return;
   }
 
   if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, freshVisitTime)) {
-    await deleteUrlVisitsBetween(item.url, freshVisitTime - 1000, freshVisitTime + 2000);
+    await deleteUrlVisitsInInclusiveWindow(item.url, freshVisitTime - 1000, freshVisitTime + 2000);
   }
 }
 

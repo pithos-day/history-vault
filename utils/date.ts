@@ -75,6 +75,7 @@ function startOfNextMonth(input: Date | number): Date {
   return addMonthsToMonthStart(startOfMonth(input), 1);
 }
 
+/** Returns the half-open range [start, end) for the given day. */
 export function getDayRange(input: Date | number): { start: number; end: number } {
   return {
     start: startOfDay(input).getTime(),
@@ -82,6 +83,7 @@ export function getDayRange(input: Date | number): { start: number; end: number 
   };
 }
 
+/** Returns the half-open range [start, end) for the given month. */
 export function getMonthRange(input: Date | number): { start: number; end: number } {
   return {
     start: startOfMonth(input).getTime(),
@@ -89,6 +91,7 @@ export function getMonthRange(input: Date | number): { start: number; end: numbe
   };
 }
 
+/** Returns the half-open range [start, end) for the week containing the input. */
 export function getWeekRange(
   input: Date | number,
   weekStartsOn: 0 | 1 = 0,
@@ -170,8 +173,9 @@ export function formatShortDate(input: Date | number): string {
   return shortDateFormatter.format(new Date(input));
 }
 
-export function formatDateRange(start: number, end: number): string {
-  return `${formatNumericDate(start)} – ${formatNumericDate(end - 1)}`;
+/** Formats the half-open range [start, endExclusive) as an inclusive date span. */
+export function formatInclusiveDateSpan(start: number, endExclusive: number): string {
+  return `${formatNumericDate(start)} – ${formatNumericDate(endExclusive - 1)}`;
 }
 
 export function formatTime(input: Date | number): string {

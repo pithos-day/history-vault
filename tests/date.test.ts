@@ -3,7 +3,7 @@ import {
   addCalendarDays,
   dayKey,
   formatDateGroupHeader,
-  formatDateRange,
+  formatInclusiveDateSpan,
   formatTimeWithSeconds,
   getMonthGrid,
   getMonthRange,
@@ -43,8 +43,8 @@ describe('date helpers', () => {
 
   it('formats a date range inclusively', () => {
     const range = getMonthRange(new Date(2025, 8, 15));
-    expect(formatDateRange(range.start, range.end)).toContain('2025');
-    expect(formatDateRange(range.start, range.end)).toContain('9');
+    expect(formatInclusiveDateSpan(range.start, range.end)).toContain('2025');
+    expect(formatInclusiveDateSpan(range.start, range.end)).toContain('9');
   });
 
   it('handles day arithmetic across month boundaries', () => {

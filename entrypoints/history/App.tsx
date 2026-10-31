@@ -5,7 +5,7 @@ import {
   clampDateToMonth,
   dayKey,
   formatDateHeader,
-  formatDateRange,
+  formatInclusiveDateSpan,
   getMonthRange,
   isSameMonth,
   startOfMonth,
@@ -100,7 +100,7 @@ export default function App() {
     [bounds, selectedDate],
   );
 
-  const title = searching ? '検索結果' : formatDateRange(range.start, range.end);
+  const title = searching ? '検索結果' : formatInclusiveDateSpan(range.start, range.end);
 
   useEffect(() => {
     saveViewState(viewState);
@@ -356,7 +356,7 @@ export default function App() {
 
         {viewState.statsVisible && !searching ? (
           <StatsPanel
-            label={formatDateRange(range.start, range.end)}
+            label={formatInclusiveDateSpan(range.start, range.end)}
             loading={statsLoading}
             onClose={handleToggleStats}
             stats={stats}
