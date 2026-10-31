@@ -161,8 +161,10 @@ export async function removeRedirectedVisits(start: number, end: number): Promis
 
 /**
  * Removes URL variants left by same-document navigations that were imported
- * or recorded before the live collapse existed. Only untitled/URL-titled link
- * visits with no referring visit are eligible, so ordinary navigation is kept.
+ * or recorded before the live collapse existed. Untitled/URL-titled visits are
+ * dropped when a titled visit follows, and titled visits are dropped when the
+ * later URL only changes tracking parameters. Meaningful query changes and
+ * ordinary navigation are kept.
  */
 export async function removeSupersededSameDocumentVisits(
   start: number,
