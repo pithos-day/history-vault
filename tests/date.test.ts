@@ -43,8 +43,7 @@ describe('date helpers', () => {
 
   it('formats a date range inclusively', () => {
     const range = getMonthRange(new Date(2025, 8, 15));
-    expect(formatInclusiveDateSpan(range.start, range.end)).toContain('2025');
-    expect(formatInclusiveDateSpan(range.start, range.end)).toContain('9');
+    expect(formatInclusiveDateSpan(range.start, range.end)).toBe('2025/9/1 – 2025/9/30');
   });
 
   it('handles day arithmetic across month boundaries', () => {
