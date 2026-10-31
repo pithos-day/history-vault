@@ -9,6 +9,7 @@ import {
   runImportBatch,
   startImport,
 } from '../utils/history/import';
+import { browserVisit } from './factories';
 
 const historySearch = vi.fn();
 const historyGetVisits = vi.fn();
@@ -21,17 +22,6 @@ const NOW = new Date(2026, 9, 31, 12).getTime();
 
 function item(url: string, lastVisitTime: number) {
   return { id: url, url, title: 'Example', lastVisitTime, visitCount: 1 };
-}
-
-function visit(id: string, visitTime: number) {
-  return {
-    id: 'page',
-    visitId: id,
-    visitTime,
-    transition: 'link',
-    referringVisitId: '0',
-    isLocal: true,
-  };
 }
 
 describe('import batch', () => {
@@ -54,7 +44,7 @@ describe('import batch', () => {
           (entry) => entry.lastVisitTime >= startTime && entry.lastVisitTime < endTime,
         ),
     );
-    historyGetVisits.mockResolvedValue([visit('v1', NOW - 1_000)]);
+    historyGetVisits.mockResolvedValue([browserVisit('v1', NOW - 1_000)]);
 
     await startImport({ windowDays: 1 });
     const state = await runImportBatch(80);

@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useEntriesInRange } from '../entrypoints/history/hooks/useEntriesInRange';
 import { dayKey, getMonthRange } from '../utils/date';
 import { db } from '../utils/db';
-import type { PageRecord, VisitRecord } from '../utils/history/types';
 import type { VaultRevision } from '../utils/vault-events';
+import { pageRecord, visitRecord } from './factories';
 
 const newest = new Date(2026, 9, 15, 10).getTime();
 const older = new Date(2026, 9, 14, 10).getTime();
@@ -14,33 +14,9 @@ function revision(seq: number, days: string[] = [], reset = false): VaultRevisio
   return { seq, days, reset };
 }
 
-function page(url: string, time: number): PageRecord {
-  return {
-    url,
-    title: url,
-    host: new URL(url).host,
-    titleLower: url,
-    urlLower: url,
-    lastVisitTime: time,
-    firstVisitTime: time,
-    visitCount: 1,
-  };
-}
-
-function visit(id: string, url: string, time: number): VisitRecord {
-  return {
-    id,
-    url,
-    host: new URL(url).host,
-    visitedAt: time,
-    transition: 'link',
-    source: 'live',
-  };
-}
-
 async function addVisit(id: string, url: string, time: number): Promise<void> {
-  await db.pages.put(page(url, time));
-  await db.visits.put(visit(id, url, time));
+  await db.pages.put(pageRecord(url, time));
+  await db.visits.put(visitRecord(id, url, time));
   const existing = await db.activity.get(dayKey(time));
   await db.activity.put({
     date: dayKey(time),

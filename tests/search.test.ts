@@ -1,21 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../utils/db';
 import { getHighlightParts, parseSearchQuery, searchPages } from '../utils/history/search';
-import type { PageRecord } from '../utils/history/types';
-
-function page(url: string, title: string, lastVisitTime: number): PageRecord {
-  const host = new URL(url).host;
-  return {
-    url,
-    title,
-    host,
-    titleLower: title.normalize('NFKC').toLocaleLowerCase('ja-JP'),
-    urlLower: url.normalize('NFKC').toLocaleLowerCase('ja-JP'),
-    lastVisitTime,
-    firstVisitTime: lastVisitTime,
-    visitCount: 1,
-  };
-}
+import { pageRecord } from './factories';
 
 describe('search', () => {
   beforeEach(async () => {
@@ -36,8 +22,10 @@ describe('search', () => {
 
   it('finds pages by title, URL, and host', async () => {
     await db.pages.bulkPut([
-      page('https://example.com/react', 'React docs', new Date(2025, 8, 25).getTime()),
-      page('https://other.test/vue', 'Vue docs', new Date(2025, 8, 24).getTime()),
+      pageRecord('https://example.com/react', new Date(2025, 8, 25).getTime(), {
+        title: 'React docs',
+      }),
+      pageRecord('https://other.test/vue', new Date(2025, 8, 24).getTime(), { title: 'Vue docs' }),
     ]);
 
     const results = await searchPages('react');
@@ -48,9 +36,9 @@ describe('search', () => {
 
   it('filters by site and date range', async () => {
     await db.pages.bulkPut([
-      page('https://example.com/a', 'Alpha', new Date(2025, 8, 25).getTime()),
-      page('https://sub.example.com/b', 'Beta', new Date(2025, 8, 26).getTime()),
-      page('https://other.test/c', 'Gamma', new Date(2025, 8, 27).getTime()),
+      pageRecord('https://example.com/a', new Date(2025, 8, 25).getTime(), { title: 'Alpha' }),
+      pageRecord('https://sub.example.com/b', new Date(2025, 8, 26).getTime(), { title: 'Beta' }),
+      pageRecord('https://other.test/c', new Date(2025, 8, 27).getTime(), { title: 'Gamma' }),
     ]);
 
     const siteResults = await searchPages('site:example.com');

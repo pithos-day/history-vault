@@ -3,6 +3,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { db } from '../utils/db';
 import { storeVisitedItem } from '../utils/history/live';
 import { isSuppressedVisit } from '../utils/history/same-document';
+import { browserVisit } from './factories';
 
 vi.mock('../utils/delay', () => ({
   delay: vi.fn().mockResolvedValue(undefined),
@@ -21,17 +22,6 @@ Object.assign(fakeBrowser, {
 
 const NOW = Date.now();
 const URL = 'https://example.test/late';
-
-function browserVisit(id: string, visitTime: number) {
-  return {
-    id: URL,
-    visitId: id,
-    visitTime,
-    transition: 'link',
-    referringVisitId: '0',
-    isLocal: true,
-  };
-}
 
 describe('late live visit re-checks', () => {
   beforeEach(async () => {

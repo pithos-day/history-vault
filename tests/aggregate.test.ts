@@ -1,25 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { aggregateVisits } from '../utils/history/aggregate';
-import type { VisitRecord } from '../utils/history/types';
-
-function visit(
-  id: string,
-  url: string,
-  host: string,
-  visitedAt: number,
-  transition = 'link',
-): VisitRecord {
-  return { id, url, host, visitedAt, transition, source: 'live' };
-}
+import { visitRecord } from './factories';
 
 describe('aggregateVisits', () => {
   it('aggregates views, pages, domains, transitions, and series', () => {
     const start = new Date(2025, 8, 24).getTime();
     const end = new Date(2025, 8, 26).getTime();
     const visits = [
-      visit('1', 'https://example.com/a', 'example.com', start + 3_600_000, 'typed'),
-      visit('2', 'https://example.com/a', 'example.com', start + 7_200_000, 'link'),
-      visit('3', 'https://other.test/b', 'other.test', start + 86_400_000, 'reload'),
+      visitRecord('1', 'https://example.com/a', start + 3_600_000, { transition: 'typed' }),
+      visitRecord('2', 'https://example.com/a', start + 7_200_000),
+      visitRecord('3', 'https://other.test/b', start + 86_400_000, { transition: 'reload' }),
     ];
 
     const stats = aggregateVisits(visits, start, end, 'day');
@@ -38,8 +28,8 @@ describe('aggregateVisits', () => {
     const start = new Date(2025, 8, 25).getTime();
     const end = start + 86_400_000;
     const visits = [
-      visit('1', 'https://example.com/a', 'example.com', start + 9 * 3_600_000),
-      visit('2', 'https://example.com/b', 'example.com', start + 9 * 3_600_000 + 60_000),
+      visitRecord('1', 'https://example.com/a', start + 9 * 3_600_000),
+      visitRecord('2', 'https://example.com/b', start + 9 * 3_600_000 + 60_000),
     ];
 
     const stats = aggregateVisits(visits, start, end, 'hour');

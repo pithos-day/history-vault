@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Browser } from 'wxt/browser';
 import { db } from '../utils/db';
 import { ingestHistoryItem } from '../utils/history/collect';
+import { browserVisit } from './factories';
 
 const { getVisits } = vi.hoisted(() => ({ getVisits: vi.fn() }));
 
@@ -20,17 +21,6 @@ const END = START + DAY;
 const NOW = new Date(2026, 9, 31, 12).getTime();
 const URL = 'https://example.com/current';
 
-function visit(visitTime: number): Browser.history.VisitItem {
-  return {
-    id: 'page',
-    visitId: 'visit-1',
-    visitTime,
-    transition: 'link',
-    referringVisitId: '0',
-    isLocal: true,
-  };
-}
-
 function item(lastVisitTime: number): Browser.history.HistoryItem {
   return {
     id: 'page',
@@ -48,7 +38,7 @@ beforeEach(async () => {
 
 describe('ingestHistoryItem import window', () => {
   it('ignores a page whose only visits are outside the requested window', async () => {
-    getVisits.mockResolvedValue([visit(NOW)]);
+    getVisits.mockResolvedValue([browserVisit('visit-1', NOW)]);
 
     const result = await ingestHistoryItem(item(NOW), {
       source: 'import',
@@ -73,7 +63,7 @@ describe('ingestHistoryItem import window', () => {
       firstVisitTime: START - DAY,
       visitCount: 1,
     });
-    getVisits.mockResolvedValue([visit(NOW)]);
+    getVisits.mockResolvedValue([browserVisit('visit-1', NOW)]);
 
     await ingestHistoryItem(item(NOW), {
       source: 'import',
@@ -121,7 +111,7 @@ describe('ingestHistoryItem import window', () => {
   });
 
   it('does not store the URL as the page title', async () => {
-    getVisits.mockResolvedValue([visit(NOW)]);
+    getVisits.mockResolvedValue([browserVisit('visit-1', NOW)]);
 
     await ingestHistoryItem({ ...item(NOW), title: URL }, { notify: false });
 
@@ -129,7 +119,7 @@ describe('ingestHistoryItem import window', () => {
   });
 
   it('does not store another URL as the page title', async () => {
-    getVisits.mockResolvedValue([visit(NOW)]);
+    getVisits.mockResolvedValue([browserVisit('visit-1', NOW)]);
 
     await ingestHistoryItem(
       { ...item(NOW), title: 'https://example.com/search?q=old' },
@@ -140,7 +130,7 @@ describe('ingestHistoryItem import window', () => {
   });
 
   it('does not store a scheme-less URL as the page title', async () => {
-    getVisits.mockResolvedValue([visit(NOW)]);
+    getVisits.mockResolvedValue([browserVisit('visit-1', NOW)]);
 
     await ingestHistoryItem({ ...item(NOW), title: 'example.com/current' }, { notify: false });
 
@@ -148,7 +138,7 @@ describe('ingestHistoryItem import window', () => {
   });
 
   it('replaces a stored URL title with the resolved title', async () => {
-    getVisits.mockResolvedValue([visit(NOW)]);
+    getVisits.mockResolvedValue([browserVisit('visit-1', NOW)]);
     await ingestHistoryItem({ ...item(NOW), title: URL }, { notify: false });
 
     await ingestHistoryItem({ ...item(NOW), title: 'Resolved Title' }, { notify: false });

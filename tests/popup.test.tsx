@@ -4,20 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import App from '../entrypoints/popup/App';
 import { db } from '../utils/db';
-import type { PageRecord } from '../utils/history/types';
-
-function page(url: string, title: string, lastVisitTime: number): PageRecord {
-  return {
-    url,
-    title,
-    host: new URL(url).host,
-    titleLower: title.toLowerCase(),
-    urlLower: url.toLowerCase(),
-    lastVisitTime,
-    firstVisitTime: lastVisitTime,
-    visitCount: 1,
-  };
-}
+import { pageRecord } from './factories';
 
 describe('popup', () => {
   beforeEach(async () => {
@@ -31,7 +18,7 @@ describe('popup', () => {
 
   it('shows recent history and opens the search view', async () => {
     const now = Date.now();
-    await db.pages.put(page('https://example.com/', 'Example Domain', now));
+    await db.pages.put(pageRecord('https://example.com/', now, { title: 'Example Domain' }));
 
     render(<App />);
 

@@ -12,6 +12,7 @@ import {
   getEntryDaysPage,
   removeRedirectedVisits,
 } from '../utils/history/query';
+import { browserVisit } from './factories';
 
 const { getVisits } = vi.hoisted(() => ({ getVisits: vi.fn() }));
 
@@ -24,17 +25,6 @@ vi.mock('wxt/browser', () => ({
     runtime: { getURL: (path: string) => `chrome-extension://test${path}` },
   },
 }));
-
-function visit(id: string, visitTime: number): Browser.history.VisitItem {
-  return {
-    id: 'page',
-    visitId: id,
-    visitTime,
-    transition: 'link',
-    referringVisitId: '0',
-    isLocal: true,
-  };
-}
 
 function item(url: string, title: string, lastVisitTime: number, visitCount: number) {
   return { id: url, url, title, lastVisitTime, visitCount };
@@ -56,8 +46,8 @@ describe('day activity summary', () => {
 
   it('rolls visits up into one calendar row per day', async () => {
     const day = new Date(2026, 9, 15, 10).getTime();
-    await ingest('https://a.test/', 'A', [visit('a1', day), visit('a2', day + 1000)]);
-    await ingest('https://b.test/', 'B', [visit('b1', day + 2000)]);
+    await ingest('https://a.test/', 'A', [browserVisit('a1', day), browserVisit('a2', day + 1000)]);
+    await ingest('https://b.test/', 'B', [browserVisit('b1', day + 2000)]);
 
     const activity = await getCalendarActivityForDates([dayKey(day)]);
 
@@ -67,8 +57,8 @@ describe('day activity summary', () => {
   it('pages through days from newest to oldest without reading the whole month', async () => {
     const older = new Date(2026, 9, 14, 9).getTime();
     const newer = new Date(2026, 9, 15, 9).getTime();
-    await ingest('https://older.test/', 'Older', [visit('older', older)]);
-    await ingest('https://newer.test/', 'Newer', [visit('newer', newer)]);
+    await ingest('https://older.test/', 'Older', [browserVisit('older', older)]);
+    await ingest('https://newer.test/', 'Newer', [browserVisit('newer', newer)]);
 
     const range = getMonthRange(newer);
     const first = await getEntryDaysPage(range.start, range.end, { limit: 1 });
@@ -87,8 +77,8 @@ describe('day activity summary', () => {
   it('reads only the calendar days named by a revision', async () => {
     const older = new Date(2026, 9, 14, 9).getTime();
     const newer = new Date(2026, 9, 15, 9).getTime();
-    await ingest('https://older.test/', 'Older', [visit('older', older)]);
-    await ingest('https://newer.test/', 'Newer', [visit('newer', newer)]);
+    await ingest('https://older.test/', 'Older', [browserVisit('older', older)]);
+    await ingest('https://newer.test/', 'Newer', [browserVisit('newer', newer)]);
 
     const changed = await getCalendarActivityForDates([dayKey(newer), '2026-10-01']);
 
@@ -98,8 +88,8 @@ describe('day activity summary', () => {
   it('rebuilds only the requested days for a revision update', async () => {
     const older = new Date(2026, 9, 14, 9).getTime();
     const newer = new Date(2026, 9, 15, 9).getTime();
-    await ingest('https://older.test/', 'Older', [visit('older', older)]);
-    await ingest('https://newer.test/', 'Newer', [visit('newer', newer)]);
+    await ingest('https://older.test/', 'Older', [browserVisit('older', older)]);
+    await ingest('https://newer.test/', 'Newer', [browserVisit('newer', newer)]);
 
     const changed = await getDayEntriesForDates([dayKey(newer), '2026-10-01']);
     expect(changed.map((day) => day.date)).toEqual([dayKey(newer)]);
@@ -111,8 +101,11 @@ describe('day activity summary', () => {
 
   it('updates the summary when visits are removed', async () => {
     const ten = new Date(2026, 9, 15, 10).getTime();
-    await ingest('https://a.test/', 'A', [visit('a1', ten), visit('a2', ten + 300_000)]);
-    await ingest('https://b.test/', 'B', [visit('b1', ten + 1000)]);
+    await ingest('https://a.test/', 'A', [
+      browserVisit('a1', ten),
+      browserVisit('a2', ten + 300_000),
+    ]);
+    await ingest('https://b.test/', 'B', [browserVisit('b1', ten + 1000)]);
 
     await deleteUrlVisitsInInclusiveWindow('https://a.test/', ten + 200_000, ten + 400_000);
     let activity = await getCalendarActivityForDates([dayKey(ten)]);
@@ -128,8 +121,8 @@ describe('day activity summary', () => {
 
   it('removes a redirect intermediate that was written before its marker', async () => {
     const ten = new Date(2026, 9, 15, 10).getTime();
-    await ingest('https://redirect.test/', 'Redirect', [visit('redirect', ten)]);
-    await ingest('https://target.test/', 'Target', [visit('target', ten + 5)]);
+    await ingest('https://redirect.test/', 'Redirect', [browserVisit('redirect', ten)]);
+    await ingest('https://target.test/', 'Target', [browserVisit('target', ten + 5)]);
 
     await db.meta.put({
       key: 'redirectMarkers',

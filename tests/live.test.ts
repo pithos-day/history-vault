@@ -13,7 +13,7 @@ import {
   isRedirectedVisit,
   resetRedirectMarkersCache,
 } from '../utils/history/redirects';
-import type { VisitRecord } from '../utils/history/types';
+import { browserVisit, visitRecord } from './factories';
 
 vi.mock('../utils/delay', () => ({
   delay: vi.fn().mockResolvedValue(undefined),
@@ -31,28 +31,6 @@ const URL = 'https://example.test/page';
 
 function item(title: string, time = NOW) {
   return { id: URL, url: URL, title, lastVisitTime: time, visitCount: 1 };
-}
-
-function visit(id: string, visitedAt: number): VisitRecord {
-  return {
-    id,
-    url: URL,
-    host: 'example.test',
-    visitedAt,
-    transition: 'link',
-    source: 'live',
-  };
-}
-
-function browserVisit(id: string, visitTime: number) {
-  return {
-    id: URL,
-    visitId: id,
-    visitTime,
-    transition: 'link',
-    referringVisitId: '0',
-    isLocal: true,
-  };
 }
 
 describe('live visit handling', () => {
@@ -78,7 +56,7 @@ describe('live visit handling', () => {
   });
 
   it('drops an intermediate redirect page and keeps its marker', async () => {
-    await db.visits.put(visit('old', NOW));
+    await db.visits.put(visitRecord('old', URL, NOW));
 
     await handleRedirectSource({ url: URL, from: NOW - 1_000, to: NOW + 2_000 });
 
@@ -87,7 +65,7 @@ describe('live visit handling', () => {
   });
 
   it('suppresses the previous URL after a same-document navigation', async () => {
-    await db.visits.put(visit('old', NOW));
+    await db.visits.put(visitRecord('old', URL, NOW));
     getNavigationState(1, 0).committed = { url: URL, time: NOW };
 
     handleSameDocumentNavigation({

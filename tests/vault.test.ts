@@ -12,7 +12,7 @@ import {
   removeInferredRedirectVisits,
   removeSupersededSameDocumentVisits,
 } from '../utils/history/query';
-import type { PageRecord, VisitRecord } from '../utils/history/types';
+import { pageRecord, visitRecord } from './factories';
 
 const history = {
   search: vi.fn(),
@@ -20,30 +20,6 @@ const history = {
 };
 
 Object.assign(fakeBrowser, { history });
-
-function page(url: string, lastVisitTime: number): PageRecord {
-  return {
-    url,
-    title: url,
-    host: new URL(url).host,
-    titleLower: url,
-    urlLower: url,
-    lastVisitTime,
-    firstVisitTime: lastVisitTime,
-    visitCount: 1,
-  };
-}
-
-function visit(id: string, url: string, visitedAt: number): VisitRecord {
-  return {
-    id,
-    url,
-    host: new URL(url).host,
-    visitedAt,
-    transition: 'link',
-    source: 'live',
-  };
-}
 
 describe('vault maintenance', () => {
   beforeEach(async () => {
@@ -55,8 +31,8 @@ describe('vault maintenance', () => {
 
   it('clears all data and advances the vault epoch', async () => {
     const start = new Date(2025, 8, 25, 10).getTime();
-    await db.pages.put(page('https://example.com/a', start));
-    await db.visits.put(visit('1', 'https://example.com/a', start));
+    await db.pages.put(pageRecord('https://example.com/a', start));
+    await db.visits.put(visitRecord('1', 'https://example.com/a', start));
 
     const before = await getVaultEpoch();
     await clearVaultData();
@@ -150,11 +126,11 @@ describe('vault maintenance', () => {
     const dayTwo = new Date(2025, 8, 26, 10).getTime();
     const url = 'https://example.com/a';
 
-    await db.pages.put(page(url, dayTwo));
+    await db.pages.put(pageRecord(url, dayTwo));
     await db.visits.bulkPut([
-      visit('1', url, dayOne),
-      visit('2', url, dayTwo),
-      visit('3', 'https://other.test/b', dayTwo),
+      visitRecord('1', url, dayOne),
+      visitRecord('2', url, dayTwo),
+      visitRecord('3', 'https://other.test/b', dayTwo),
     ]);
 
     await deleteUrlFromVault(url, new Date(dayOne));
@@ -171,12 +147,12 @@ describe('vault maintenance', () => {
     const dayTwo = new Date(2025, 8, 26, 10).getTime();
 
     await db.pages.bulkPut([
-      page('https://example.com/a', dayOne),
-      page('https://other.test/b', dayTwo),
+      pageRecord('https://example.com/a', dayOne),
+      pageRecord('https://other.test/b', dayTwo),
     ]);
     await db.visits.bulkPut([
-      visit('1', 'https://example.com/a', dayOne),
-      visit('2', 'https://other.test/b', dayTwo),
+      visitRecord('1', 'https://example.com/a', dayOne),
+      visitRecord('2', 'https://other.test/b', dayTwo),
     ]);
 
     await deleteDayFromVault(new Date(dayOne));
@@ -192,11 +168,15 @@ describe('vault maintenance', () => {
     const secondUrl = 'https://example.com/';
     const finalUrl = 'https://www.example.com/home';
 
-    await db.pages.bulkPut([page(firstUrl, at), page(secondUrl, at), page(finalUrl, at)]);
+    await db.pages.bulkPut([
+      pageRecord(firstUrl, at),
+      pageRecord(secondUrl, at),
+      pageRecord(finalUrl, at),
+    ]);
     await db.visits.bulkPut([
-      { ...visit('101', firstUrl, at), referringVisitId: 'previous' },
-      { ...visit('102', secondUrl, at), referringVisitId: '101' },
-      { ...visit('103', finalUrl, at), referringVisitId: '102' },
+      { ...visitRecord('101', firstUrl, at), referringVisitId: 'previous' },
+      { ...visitRecord('102', secondUrl, at), referringVisitId: '101' },
+      { ...visitRecord('103', finalUrl, at), referringVisitId: '102' },
     ]);
 
     const removed = await removeInferredRedirectVisits(at, at + 1);
@@ -218,16 +198,16 @@ describe('vault maintenance', () => {
     const variantEnd = 'https://example.com/search?q=sample&ei=abc';
 
     await db.pages.bulkPut([
-      page(redirectStart, at),
-      page(redirectEnd, at),
-      { ...page(variantStart, at + 1000), title: variantStart, titleLower: variantStart },
-      { ...page(variantEnd, at + 1500), title: 'Sample', titleLower: 'sample' },
+      pageRecord(redirectStart, at),
+      pageRecord(redirectEnd, at),
+      pageRecord(variantStart, at + 1000),
+      pageRecord(variantEnd, at + 1500, { title: 'Sample' }),
     ]);
     await db.visits.bulkPut([
-      { ...visit('201', redirectStart, at), referringVisitId: '200' },
-      { ...visit('202', redirectEnd, at), referringVisitId: '201' },
-      { ...visit('301', variantStart, at + 1000), referringVisitId: '0' },
-      { ...visit('302', variantEnd, at + 1500), referringVisitId: '0' },
+      { ...visitRecord('201', redirectStart, at), referringVisitId: '200' },
+      { ...visitRecord('202', redirectEnd, at), referringVisitId: '201' },
+      { ...visitRecord('301', variantStart, at + 1000), referringVisitId: '0' },
+      { ...visitRecord('302', variantEnd, at + 1500), referringVisitId: '0' },
     ]);
 
     await cleanupHistoryRange(at, at + 10_000);
@@ -246,12 +226,12 @@ describe('vault maintenance', () => {
     const finalUrl = 'https://example.com/search?q=sample&ei=abc';
 
     await db.pages.bulkPut([
-      { ...page(firstUrl, at), title: firstUrl, titleLower: firstUrl },
-      { ...page(finalUrl, at + 500), title: 'Sample', titleLower: 'sample' },
+      pageRecord(firstUrl, at),
+      pageRecord(finalUrl, at + 500, { title: 'Sample' }),
     ]);
     await db.visits.bulkPut([
-      { ...visit('state-1', firstUrl, at), referringVisitId: '0' },
-      { ...visit('state-2', finalUrl, at + 500), referringVisitId: '0' },
+      { ...visitRecord('state-1', firstUrl, at), referringVisitId: '0' },
+      { ...visitRecord('state-2', finalUrl, at + 500), referringVisitId: '0' },
     ]);
 
     const removed = await removeSupersededSameDocumentVisits(at, at + 10_000);

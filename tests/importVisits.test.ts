@@ -1,23 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Browser } from 'wxt/browser';
 import { resolveVisits } from '../utils/history/collect';
+import { browserVisit } from './factories';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const START = new Date(2026, 9, 1).getTime();
 const END = START + DAY;
 const URL = 'https://example.com/';
-
-function visit(id: string, visitTime: number): Browser.history.VisitItem {
-  return {
-    id: 'page',
-    visitId: id,
-    visitTime,
-    transition: 'link',
-    referringVisitId: '0',
-    isLocal: true,
-  };
-}
 
 function item(lastVisitTime?: number): Browser.history.HistoryItem {
   return {
@@ -34,7 +24,7 @@ describe('resolveVisits', () => {
     const visits = resolveVisits(
       URL,
       'example.com',
-      [visit('inside', START + HOUR), visit('before', START - DAY)],
+      [browserVisit('inside', START + HOUR), browserVisit('before', START - DAY)],
       item(START - HOUR),
       { source: 'import', since: START, until: END },
     );
@@ -47,7 +37,7 @@ describe('resolveVisits', () => {
     const visits = resolveVisits(
       URL,
       'example.com',
-      [visit('before', START - DAY)],
+      [browserVisit('before', START - DAY)],
       item(START - HOUR),
       { source: 'import', since: START, until: END },
     );
@@ -88,7 +78,7 @@ describe('resolveVisits', () => {
       [],
     );
     expect(
-      resolveVisits(URL, 'example.com', [visit('epoch', 0)], item(0), {
+      resolveVisits(URL, 'example.com', [browserVisit('epoch', 0)], item(0), {
         since: START,
         until: END,
       }),
@@ -99,7 +89,7 @@ describe('resolveVisits', () => {
     const visits = resolveVisits(
       URL,
       'example.com',
-      [visit('old', START - DAY), visit('new', START + HOUR)],
+      [browserVisit('old', START - DAY), browserVisit('new', START + HOUR)],
       item(),
     );
 
@@ -118,14 +108,14 @@ describe('resolveVisits', () => {
     const intermediate = resolveVisits(
       'https://redirect.test/',
       'redirect.test',
-      [visit('redirect', START + HOUR)],
+      [browserVisit('redirect', START + HOUR)],
       item(START + HOUR),
       { source: 'import', since: START, until: END, redirects },
     );
     const destination = resolveVisits(
       URL,
       'example.com',
-      [visit('target', START + HOUR + 5)],
+      [browserVisit('target', START + HOUR + 5)],
       item(START + HOUR + 5),
       { source: 'import', since: START, until: END, redirects },
     );
