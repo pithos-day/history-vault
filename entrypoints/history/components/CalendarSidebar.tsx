@@ -97,10 +97,12 @@ export function CalendarSidebar({
 }
 
 function buildCalendarDays(months: Date[], weekStartsOn: 0 | 1): Date[] {
-  if (months.length === 0) return [];
+  const firstMonth = months[0];
+  const lastMonth = months.at(-1);
+  if (!firstMonth || !lastMonth) return [];
 
-  const first = startOfMonth(months[0] as Date);
-  const last = startOfMonth(months[months.length - 1] as Date);
+  const first = startOfMonth(firstMonth);
+  const last = startOfMonth(lastMonth);
   const gridStart = startOfWeek(first, weekStartsOn);
   const lastDay = addCalendarDays(addMonthsToMonthStart(last, 1), -1);
   const gridEnd = addCalendarDays(startOfWeek(lastDay, weekStartsOn), 7);
