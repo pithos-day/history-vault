@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect -- data fetching hooks reset loading state when inputs change. */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { parseDayKey } from '@/utils/date';
+import { dayKey, parseDayKey } from '@/utils/date';
 import { getDayEntriesForDates, getEntryDaysPage } from '@/utils/history/query';
 import type { DayEntries } from '@/utils/history/types';
 import type { VaultRevision } from '@/utils/vault-events';
@@ -42,7 +42,12 @@ export function useEntriesInRange(
 
   const applyChangedDays = useCallback(
     async (dates: readonly string[], token: number) => {
-      const entries = await getDayEntriesForDates(dates);
+      const startKey = dayKey(start);
+      const endKey = dayKey(end - 1);
+      const inRange = dates.filter((date) => date >= startKey && date <= endKey);
+      if (inRange.length === 0) return;
+
+      const entries = await getDayEntriesForDates(inRange);
       if (token !== requestRef.current) return;
 
       const current = daysRef.current;
@@ -52,7 +57,7 @@ export function useEntriesInRange(
       const oldest = current[current.length - 1]?.date ?? '';
       const next = new Map(current.map((day) => [day.date, day]));
 
-      for (const date of dates) {
+      for (const date of inRange) {
         const day = changed.get(date);
         if (day) {
           if (next.has(date) || date >= oldest) next.set(date, day);
@@ -71,7 +76,7 @@ export function useEntriesInRange(
 
       commitDays(merged);
     },
-    [commitDays],
+    [commitDays, start, end],
   );
 
   const flushPendingDays = useCallback(
