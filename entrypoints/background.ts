@@ -41,6 +41,7 @@ import { isVaultRequest } from '@/utils/messages';
 import { ensureDefaultSettings, getSettings } from '@/utils/settings';
 
 const IMPORT_ALARM = 'history-vault-import';
+const CLEANUP_ALARM = 'history-vault-cleanup';
 
 interface NavigationState {
   before?: NavigationSnapshot;
@@ -155,7 +156,6 @@ async function handleInstalled(reason: string): Promise<void> {
   }
 
   const state = await ensureImportStarted();
-  await cleanupRecentVisits();
   await syncBadge(state);
 }
 
@@ -163,7 +163,6 @@ async function handleStartup(): Promise<void> {
   await ensureAlarms();
 
   const state = await ensureImportStarted();
-  await cleanupRecentVisits();
   await syncBadge(state);
 }
 
@@ -171,6 +170,11 @@ async function handleAlarm(name: string): Promise<void> {
   if (name === IMPORT_ALARM) {
     const state = await runImportBatch();
     await syncBadge(state);
+    return;
+  }
+
+  if (name === CLEANUP_ALARM) {
+    await cleanupRecentVisits();
   }
 }
 
@@ -338,6 +342,10 @@ async function handleRequest(request: VaultRequest): Promise<{ ok: true }> {
 
 async function ensureAlarms(): Promise<void> {
   await browser.alarms.create(IMPORT_ALARM, { periodInMinutes: 1 });
+  await browser.alarms.create(CLEANUP_ALARM, {
+    delayInMinutes: 1,
+    periodInMinutes: 360,
+  });
 }
 
 async function cleanupRecentVisits(): Promise<void> {

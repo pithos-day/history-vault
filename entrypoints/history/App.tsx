@@ -10,8 +10,6 @@ import {
   isSameMonth,
   startOfMonth,
 } from '@/utils/date';
-import { cleanupHistoryRange } from '@/utils/history/query';
-import { RECENT_CLEANUP_MS } from '@/utils/history/same-document';
 import type { EntryGroup } from '@/utils/history/types';
 import { sendVaultMessage } from '@/utils/messages';
 import { isSupportedUrl } from '@/utils/url';
@@ -115,30 +113,6 @@ export default function App() {
 
   useEffect(() => {
     void navigator.storage?.persist?.();
-  }, []);
-
-  useEffect(() => {
-    let lastRun = 0;
-
-    const cleanup = () => {
-      const now = Date.now();
-      if (now - lastRun < 3000) return;
-      lastRun = now;
-      void cleanupHistoryRange(now - RECENT_CLEANUP_MS, now).catch(() => {});
-    };
-
-    cleanup();
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') cleanup();
-    };
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('focus', onVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('focus', onVisibilityChange);
-    };
   }, []);
 
   useEffect(() => {

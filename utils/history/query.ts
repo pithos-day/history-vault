@@ -200,20 +200,7 @@ export async function removeInferredRedirectVisits(start: number, end: number): 
   const visits = await getVisitsBetween(start, end);
   if (visits.length < 2) return 0;
 
-  const ids = findSupersededRedirectVisitIds(visits);
-  if (ids.length === 0) return 0;
-
-  const idSet = new Set(ids);
-  const removed = visits.filter((visit) => idSet.has(visit.id));
-  await db.visits.bulkDelete(ids);
-  await recomputeActivityForVisits(removed);
-
-  for (const url of new Set(removed.map((visit) => visit.url))) {
-    await cleanupPage(url);
-  }
-
-  await bumpVaultRevision();
-  return ids.length;
+  return deleteSupersededVisits(visits, findSupersededRedirectVisitIds(visits));
 }
 
 /**
@@ -230,13 +217,45 @@ export async function removeSupersededSameDocumentVisits(
   const visits = await getVisitsBetween(start, end);
   if (visits.length < 2) return 0;
 
+  const titleMap = await loadPageTitles(visits);
+  return deleteSupersededVisits(visits, findSameDocumentVisitIds(visits, titleMap));
+}
+
+/**
+ * Applies both cleanup rules in one pass. Reading the range and its page
+ * titles once avoids the duplicate scans that used to run when the history
+ * page opened.
+ */
+export async function cleanupHistoryRange(start: number, end: number): Promise<void> {
+  const visits = await getVisitsBetween(start, end);
+  if (visits.length < 2) return;
+
+  const titleMap = await loadPageTitles(visits);
+  const ids = new Set([
+    ...findSupersededRedirectVisitIds(visits),
+    ...findSameDocumentVisitIds(visits, titleMap),
+  ]);
+  if (ids.size === 0) return;
+
+  await deleteSupersededVisits(visits, [...ids]);
+}
+
+async function loadPageTitles(visits: readonly VisitRecord[]): Promise<Map<string, string>> {
   const pages = await db.pages.bulkGet([...new Set(visits.map((visit) => visit.url))]);
-  const titleMap = new Map<string, string>();
+  const titles = new Map<string, string>();
+
   for (const page of pages) {
-    if (page) titleMap.set(page.url, page.title);
+    if (page) titles.set(page.url, page.title);
   }
 
-  const ids = findSupersededVisitIds(
+  return titles;
+}
+
+function findSameDocumentVisitIds(
+  visits: readonly VisitRecord[],
+  titleMap: ReadonlyMap<string, string>,
+): string[] {
+  return findSupersededVisitIds(
     visits.map((visit) => ({
       id: visit.id,
       url: visit.url,
@@ -246,11 +265,19 @@ export async function removeSupersededSameDocumentVisits(
       title: titleMap.get(visit.url),
     })),
   );
+}
+
+async function deleteSupersededVisits(
+  visits: readonly VisitRecord[],
+  ids: readonly string[],
+): Promise<number> {
   if (ids.length === 0) return 0;
 
   const idSet = new Set(ids);
   const removed = visits.filter((visit) => idSet.has(visit.id));
-  await db.visits.bulkDelete(ids);
+  if (removed.length === 0) return 0;
+
+  await db.visits.bulkDelete(removed.map((visit) => visit.id));
   await recomputeActivityForVisits(removed);
 
   for (const url of new Set(removed.map((visit) => visit.url))) {
@@ -258,17 +285,7 @@ export async function removeSupersededSameDocumentVisits(
   }
 
   await bumpVaultRevision();
-  return ids.length;
-}
-
-/**
- * Applies the write-time cleanup rules to a range. Import and the recent
- * history view both use this so redirect hops and same-document variants are
- * treated the same way regardless of how the visits reached the vault.
- */
-export async function cleanupHistoryRange(start: number, end: number): Promise<void> {
-  await removeInferredRedirectVisits(start, end);
-  await removeSupersededSameDocumentVisits(start, end);
+  return removed.length;
 }
 
 export async function deleteDayFromVault(date: Date | number): Promise<void> {

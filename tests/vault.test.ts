@@ -4,6 +4,7 @@ import { db } from '../utils/db';
 import { ingestHistoryItem } from '../utils/history/collect';
 import { getVaultEpoch } from '../utils/history/epoch';
 import {
+  cleanupHistoryRange,
   clearVaultData,
   deleteDayFromVault,
   deleteUrlFromVault,
@@ -207,6 +208,36 @@ describe('vault maintenance', () => {
     expect(await db.pages.get(firstUrl)).toBeUndefined();
     expect(await db.pages.get(secondUrl)).toBeUndefined();
     expect(await db.pages.get(finalUrl)).toBeDefined();
+  });
+
+  it('removes redirect hops and same-document variants in one pass', async () => {
+    const at = new Date(2025, 8, 25, 10).getTime();
+    const redirectStart = 'http://redirect.test/';
+    const redirectEnd = 'https://redirect.test/final';
+    const variantStart = 'https://example.com/search?q=sample';
+    const variantEnd = 'https://example.com/search?q=sample&ei=abc';
+
+    await db.pages.bulkPut([
+      page(redirectStart, at),
+      page(redirectEnd, at),
+      { ...page(variantStart, at + 1000), title: variantStart, titleLower: variantStart },
+      { ...page(variantEnd, at + 1500), title: 'Sample', titleLower: 'sample' },
+    ]);
+    await db.visits.bulkPut([
+      { ...visit('201', redirectStart, at), referringVisitId: '200' },
+      { ...visit('202', redirectEnd, at), referringVisitId: '201' },
+      { ...visit('301', variantStart, at + 1000), referringVisitId: '0' },
+      { ...visit('302', variantEnd, at + 1500), referringVisitId: '0' },
+    ]);
+
+    await cleanupHistoryRange(at, at + 10_000);
+
+    expect(await db.visits.get('201')).toBeUndefined();
+    expect(await db.visits.get('202')).toBeDefined();
+    expect(await db.visits.get('301')).toBeUndefined();
+    expect(await db.visits.get('302')).toBeDefined();
+    expect(await db.pages.get(redirectStart)).toBeUndefined();
+    expect(await db.pages.get(variantStart)).toBeUndefined();
   });
 
   it('removes saved same-document URL variants and their pages', async () => {
