@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { categorizeTransition, emptyTransitionCounts } from '../utils/history/transitions';
-import { getDisplayUrl, getHost, getHostInitial, isSupportedUrl } from '../utils/url';
+import {
+  getDisplayUrl,
+  getHost,
+  getHostInitial,
+  getHostUrl,
+  isLocalFileHost,
+  isSupportedUrl,
+  LOCAL_FILE_HOST,
+} from '../utils/url';
 
 describe('url helpers', () => {
   it('allows only web and local file URLs', () => {
@@ -14,14 +22,21 @@ describe('url helpers', () => {
 
   it('extracts hosts and display URLs', () => {
     expect(getHost('https://www.example.com/path')).toBe('www.example.com');
-    expect(getHost('file:///tmp/page.html')).toBe('ローカルファイル');
+    expect(getHost('file:///tmp/page.html')).toBe(LOCAL_FILE_HOST);
+    expect(isLocalFileHost(LOCAL_FILE_HOST)).toBe(true);
+    expect(isLocalFileHost('example.com')).toBe(false);
     expect(getDisplayUrl('https://example.com/')).toBe('example.com');
     expect(getDisplayUrl('https://example.com/a?b=1')).toBe('example.com/a?b=1');
   });
 
   it('creates favicon fallback initials', () => {
     expect(getHostInitial('www.example.com')).toBe('E');
-    expect(getHostInitial('ローカルファイル')).toBe('F');
+    expect(getHostInitial(LOCAL_FILE_HOST)).toBe('F');
+  });
+
+  it('does not build a favicon URL for local files', () => {
+    expect(getHostUrl('example.com')).toBe('https://example.com/');
+    expect(getHostUrl(LOCAL_FILE_HOST)).toBe('');
   });
 });
 

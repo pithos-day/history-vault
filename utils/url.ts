@@ -2,6 +2,16 @@ import { browser } from 'wxt/browser';
 
 const SUPPORTED_PROTOCOLS = new Set(['http:', 'https:', 'file:']);
 
+/**
+ * Display host stored for file:// pages. This value is persisted in page and
+ * visit records, so changing it would require a data migration.
+ */
+export const LOCAL_FILE_HOST = 'ローカルファイル';
+
+export function isLocalFileHost(host: string): boolean {
+  return host === LOCAL_FILE_HOST;
+}
+
 export function isSupportedUrl(value: string | undefined): value is string {
   if (!value) return false;
 
@@ -15,7 +25,7 @@ export function isSupportedUrl(value: string | undefined): value is string {
 export function getHost(url: string): string {
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === 'file:') return 'ローカルファイル';
+    if (parsed.protocol === 'file:') return LOCAL_FILE_HOST;
     return parsed.host || parsed.hostname || '';
   } catch {
     return '';
@@ -23,7 +33,9 @@ export function getHost(url: string): string {
 }
 
 export function getHostInitial(host: string): string {
-  const label = host.replace(/^www\./, '').replace(/^ローカルファイル$/, 'FILE');
+  if (isLocalFileHost(host)) return 'F';
+
+  const label = host.replace(/^www\./, '');
   return (label[0] ?? '?').toUpperCase();
 }
 
@@ -41,6 +53,7 @@ export function getFaviconUrl(url: string, size = 32): string | null {
 }
 
 export function getHostUrl(host: string): string {
+  if (isLocalFileHost(host)) return '';
   return host.startsWith('http://') || host.startsWith('https://') ? host : `https://${host}/`;
 }
 
