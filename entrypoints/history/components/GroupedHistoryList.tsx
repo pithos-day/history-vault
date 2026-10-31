@@ -1,6 +1,6 @@
 import { ChevronDown as ChevronDownIcon, Trash2 as TrashIcon } from 'lucide-react';
 import { type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { formatCount, formatDateGroupHeader } from '@/utils/date';
+import { formatCount, formatDateGroupHeader, formatDateHeader } from '@/utils/date';
 import type { DayEntries, EntryGroup } from '@/utils/history/types';
 import { buildListRows, type HistoryListRow } from '../lib/listRows';
 import { EntryRow } from './EntryRow';
