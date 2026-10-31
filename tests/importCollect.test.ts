@@ -119,4 +119,40 @@ describe('ingestHistoryItem import window', () => {
     expect(await db.visits.count()).toBe(0);
     expect(await db.pages.count()).toBe(0);
   });
+
+  it('does not store the URL as the page title', async () => {
+    getVisits.mockResolvedValue([visit(NOW)]);
+
+    await ingestHistoryItem({ ...item(NOW), title: URL }, { notify: false });
+
+    expect((await db.pages.get(URL))?.title).toBe('');
+  });
+
+  it('does not store another URL as the page title', async () => {
+    getVisits.mockResolvedValue([visit(NOW)]);
+
+    await ingestHistoryItem(
+      { ...item(NOW), title: 'https://example.com/search?q=old' },
+      { notify: false },
+    );
+
+    expect((await db.pages.get(URL))?.title).toBe('');
+  });
+
+  it('does not store a scheme-less URL as the page title', async () => {
+    getVisits.mockResolvedValue([visit(NOW)]);
+
+    await ingestHistoryItem({ ...item(NOW), title: 'example.com/current' }, { notify: false });
+
+    expect((await db.pages.get(URL))?.title).toBe('');
+  });
+
+  it('replaces a stored URL title with the resolved title', async () => {
+    getVisits.mockResolvedValue([visit(NOW)]);
+    await ingestHistoryItem({ ...item(NOW), title: URL }, { notify: false });
+
+    await ingestHistoryItem({ ...item(NOW), title: 'Resolved Title' }, { notify: false });
+
+    expect((await db.pages.get(URL))?.title).toBe('Resolved Title');
+  });
 });

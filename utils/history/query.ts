@@ -5,6 +5,7 @@ import { getDayActivity, recomputeActivityForVisits } from './activity';
 import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
 import { refreshRedirectMarkers } from './redirects';
+import { findSupersededVisitIds } from './same-document';
 import type {
   CalendarDayActivity,
   DayEntries,
@@ -156,6 +157,49 @@ export async function removeRedirectedVisits(start: number, end: number): Promis
       Math.min(marker.to, end),
     );
   }
+}
+
+/**
+ * Removes URL variants left by same-document navigations that were imported
+ * or recorded before the live collapse existed. Only untitled/URL-titled link
+ * visits with no referring visit are eligible, so ordinary navigation is kept.
+ */
+export async function removeSupersededSameDocumentVisits(
+  start: number,
+  end: number,
+): Promise<number> {
+  const visits = await getVisitsBetween(start, end);
+  if (visits.length < 2) return 0;
+
+  const pages = await db.pages.bulkGet([...new Set(visits.map((visit) => visit.url))]);
+  const titleMap = new Map<string, string>();
+  for (const page of pages) {
+    if (page) titleMap.set(page.url, page.title);
+  }
+
+  const ids = findSupersededVisitIds(
+    visits.map((visit) => ({
+      id: visit.id,
+      url: visit.url,
+      visitedAt: visit.visitedAt,
+      transition: visit.transition,
+      referringVisitId: visit.referringVisitId,
+      title: titleMap.get(visit.url),
+    })),
+  );
+  if (ids.length === 0) return 0;
+
+  const idSet = new Set(ids);
+  const removed = visits.filter((visit) => idSet.has(visit.id));
+  await db.visits.bulkDelete(ids);
+  await recomputeActivityForVisits(removed);
+
+  for (const url of new Set(removed.map((visit) => visit.url))) {
+    await cleanupPage(url);
+  }
+
+  await bumpVaultRevision();
+  return ids.length;
 }
 
 export async function deleteDayFromVault(date: Date | number): Promise<void> {

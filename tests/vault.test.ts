@@ -8,6 +8,7 @@ import {
   deleteDayFromVault,
   deleteUrlFromVault,
   getVaultCounts,
+  removeSupersededSameDocumentVisits,
 } from '../utils/history/query';
 import type { PageRecord, VisitRecord } from '../utils/history/types';
 
@@ -181,5 +182,28 @@ describe('vault maintenance', () => {
     expect(await db.visits.count()).toBe(1);
     expect(await db.pages.get('https://example.com/a')).toBeUndefined();
     expect(await db.pages.get('https://other.test/b')).toBeDefined();
+  });
+
+  it('removes saved same-document URL variants and their pages', async () => {
+    const at = new Date(2025, 8, 25, 10).getTime();
+    const firstUrl = 'https://example.com/search?q=sample';
+    const finalUrl = 'https://example.com/search?q=sample&ei=abc';
+
+    await db.pages.bulkPut([
+      { ...page(firstUrl, at), title: firstUrl, titleLower: firstUrl },
+      { ...page(finalUrl, at + 500), title: 'Sample', titleLower: 'sample' },
+    ]);
+    await db.visits.bulkPut([
+      { ...visit('state-1', firstUrl, at), referringVisitId: '0' },
+      { ...visit('state-2', finalUrl, at + 500), referringVisitId: '0' },
+    ]);
+
+    const removed = await removeSupersededSameDocumentVisits(at, at + 10_000);
+
+    expect(removed).toBe(1);
+    expect(await db.visits.get('state-1')).toBeUndefined();
+    expect(await db.visits.get('state-2')).toBeDefined();
+    expect(await db.pages.get(firstUrl)).toBeUndefined();
+    expect(await db.pages.get(finalUrl)).toBeDefined();
   });
 });

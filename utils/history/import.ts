@@ -4,7 +4,7 @@ import { getSettings } from '../settings';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
 import { getVaultEpoch } from './epoch';
-import { removeRedirectedVisits } from './query';
+import { removeRedirectedVisits, removeSupersededSameDocumentVisits } from './query';
 import { refreshRedirectMarkers } from './redirects';
 import type { ImportState } from './types';
 
@@ -258,6 +258,7 @@ async function processRange(
   }
 
   await removeRedirectedVisits(start, end);
+  await removeSupersededSameDocumentVisits(start, end);
   return { pages: matchedPages, visits };
 }
 

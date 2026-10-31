@@ -7,6 +7,7 @@ import { addVisitsToActivity } from './activity';
 import { getVaultEpoch } from './epoch';
 import { isRedirectedVisit } from './redirects';
 import { normalizeSearchText } from './search';
+import { normalizeTitle } from './title';
 import type { PageRecord, RedirectMarker, VisitRecord } from './types';
 
 interface IngestOptions {
@@ -66,7 +67,7 @@ export async function ingestHistoryItem(
     (first, visit) => Math.min(first, visit.visitedAt),
     existingFirst,
   );
-  const title = item.title?.trim() || existingPage?.title || '';
+  const title = normalizeTitle(item.title, existingPage?.title, url);
   const titleChanged = existingPage?.title !== title;
 
   const page: PageRecord = {

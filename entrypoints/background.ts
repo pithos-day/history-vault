@@ -17,6 +17,7 @@ import {
   deleteDayFromVault,
   deleteUrlFromVault,
   deleteUrlVisitsBetween,
+  removeSupersededSameDocumentVisits,
 } from '@/utils/history/query';
 import {
   addRedirectMarker,
@@ -28,19 +29,28 @@ import {
   type RedirectSource,
   resetRedirectMarkersCache,
 } from '@/utils/history/redirects';
+import {
+  isSuppressedVisit,
+  type SuppressedVisit,
+  suppressVisit,
+} from '@/utils/history/same-document';
 import type { ImportState } from '@/utils/history/types';
 import type { VaultRequest } from '@/utils/messages';
 import { isVaultRequest } from '@/utils/messages';
 import { ensureDefaultSettings, getSettings } from '@/utils/settings';
 
 const IMPORT_ALARM = 'history-vault-import';
+const RECENT_CLEANUP_MS = 7 * 86_400_000;
 
 interface NavigationState {
   before?: NavigationSnapshot;
   committed?: NavigationSnapshot;
+  /** The latest URL in a same-document navigation chain for this tab. */
+  chainHead?: NavigationSnapshot;
 }
 
 const navigationStates = new Map<string, NavigationState>();
+let suppressedVisits: SuppressedVisit[] = [];
 
 export default defineBackground(() => {
   void loadRedirectMarkers();
@@ -77,12 +87,21 @@ export default defineBackground(() => {
     });
 
     state.committed = { url: details.url, time: details.timeStamp };
+    state.chainHead = state.committed;
 
     if (source) {
       void handleRedirectSource(source).catch((error) => {
         console.error('History Vault: failed to drop redirect page', error);
       });
     }
+  });
+
+  browser.webNavigation.onHistoryStateUpdated.addListener((details) => {
+    handleSameDocumentNavigation(details);
+  });
+
+  browser.webNavigation.onReferenceFragmentUpdated.addListener((details) => {
+    handleSameDocumentNavigation(details);
   });
 
   browser.tabs.onRemoved.addListener((tabId) => {
@@ -136,6 +155,7 @@ async function handleInstalled(reason: string): Promise<void> {
   }
 
   const state = await ensureImportStarted();
+  await cleanupRecentSameDocumentVisits();
   await syncBadge(state);
 }
 
@@ -143,6 +163,7 @@ async function handleStartup(): Promise<void> {
   await ensureAlarms();
 
   const state = await ensureImportStarted();
+  await cleanupRecentSameDocumentVisits();
   await syncBadge(state);
 }
 
@@ -173,6 +194,42 @@ async function handleRedirectSource(source: RedirectSource): Promise<void> {
   await deleteUrlVisitsBetween(source.url, source.from, source.to);
 }
 
+/**
+ * A pushState/replaceState keeps the same document but Chrome still reports a
+ * new history visit for each URL. Collapse the chain: drop the previous URL
+ * and let the latest one represent the page.
+ */
+function handleSameDocumentNavigation(details: {
+  tabId: number;
+  frameId: number;
+  url: string;
+  timeStamp: number;
+}): void {
+  if (details.frameId !== 0) return;
+
+  const state = getNavigationState(details.tabId, details.frameId);
+  const previous = state.chainHead ?? state.committed;
+
+  if (previous && previous.url !== details.url) {
+    void suppressSupersededPage(previous).catch((error) => {
+      console.error('History Vault: failed to drop same-document page', error);
+    });
+  }
+
+  state.chainHead = { url: details.url, time: details.timeStamp };
+}
+
+async function suppressSupersededPage(page: NavigationSnapshot): Promise<void> {
+  suppressedVisits = suppressVisit(suppressedVisits, page.url, page.time);
+
+  // onVisited may land before or after this event, so run the cleanup twice.
+  const from = page.time - 2000;
+  const to = page.time + 3000;
+  await deleteUrlVisitsBetween(page.url, from, to);
+  await delay(1500);
+  await deleteUrlVisitsBetween(page.url, from, to);
+}
+
 async function handleVisitRemoved(removed: {
   allHistory: boolean;
   urls?: string[];
@@ -192,21 +249,35 @@ async function handleVisitRemoved(removed: {
 
 async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void> {
   if (!item.url) return;
+
+  const visitedAt = item.lastVisitTime ?? 0;
+  if (isSuppressedVisit(suppressedVisits, item.url, visitedAt)) return;
+
   await loadRedirectMarkers();
 
-  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, item.lastVisitTime ?? 0)) return;
+  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, visitedAt)) return;
 
   const result = await ingestHistoryItem(item);
-  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, item.lastVisitTime ?? 0)) {
-    const visitedAt = item.lastVisitTime ?? Date.now();
+
+  if (isSuppressedVisit(suppressedVisits, item.url, visitedAt)) {
+    await deleteUrlVisitsBetween(item.url, visitedAt - 2000, visitedAt + 3000);
+    return;
+  }
+
+  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, visitedAt)) {
     await deleteUrlVisitsBetween(item.url, visitedAt - 1000, visitedAt + 2000);
     return;
   }
+
   if (!result.page || result.page.title) return;
 
   // Chrome fires onVisited before the page title is available. Re-read the
   // item shortly after so the vault does not keep an empty title forever.
   await delay(1500);
+
+  if (isSuppressedVisit(suppressedVisits, item.url, visitedAt)) return;
+  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, visitedAt)) return;
+
   const candidates = await browser.history.search({
     text: item.url ?? '',
     startTime: item.lastVisitTime ? item.lastVisitTime - 60_000 : 0,
@@ -215,7 +286,19 @@ async function storeVisitedItem(item: Browser.history.HistoryItem): Promise<void
   const fresh = candidates.find(
     (candidate) => candidate.url === item.url && candidate.title?.trim(),
   );
-  if (fresh) await ingestHistoryItem(fresh);
+  if (!fresh) return;
+
+  await ingestHistoryItem(fresh);
+
+  const freshVisitTime = fresh.lastVisitTime ?? visitedAt;
+  if (isSuppressedVisit(suppressedVisits, item.url, freshVisitTime)) {
+    await deleteUrlVisitsBetween(item.url, freshVisitTime - 2000, freshVisitTime + 3000);
+    return;
+  }
+
+  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, freshVisitTime)) {
+    await deleteUrlVisitsBetween(item.url, freshVisitTime - 1000, freshVisitTime + 2000);
+  }
 }
 
 async function clearVaultAndStopImport(): Promise<void> {
@@ -255,6 +338,11 @@ async function handleRequest(request: VaultRequest): Promise<{ ok: true }> {
 
 async function ensureAlarms(): Promise<void> {
   await browser.alarms.create(IMPORT_ALARM, { periodInMinutes: 1 });
+}
+
+async function cleanupRecentSameDocumentVisits(): Promise<void> {
+  const end = Date.now();
+  await removeSupersededSameDocumentVisits(end - RECENT_CLEANUP_MS, end);
 }
 
 async function syncBadge(state: ImportState): Promise<void> {
