@@ -8,6 +8,7 @@ import { findSupersededRedirectVisitIds, refreshRedirectMarkers } from './redire
 import { findSupersededVisitIds } from './same-document';
 import type {
   CalendarDayActivity,
+  DayActivityRecord,
   DayEntries,
   EntryGroup,
   PageRecord,
@@ -56,24 +57,48 @@ export async function getEntryDaysPage(
   const page = rows.slice(0, limit);
   if (page.length === 0) return { days: [], hasMore: false };
 
-  const visitsPerDay = await Promise.all(
-    page.map((row) => {
-      const dayStart = parseDayKey(row.date) ?? startOfDay(start);
-      return getVisitsBetween(dayStart.getTime(), addDays(dayStart, 1).getTime());
-    }),
-  );
-  const pages = await db.pages.bulkGet([...new Set(visitsPerDay.flat().map((visit) => visit.url))]);
+  return {
+    days: await buildDayEntriesForRows(page, start),
+    hasMore: rows.length > limit,
+  };
+}
+
+async function buildDayEntriesForRows(
+  rows: DayActivityRecord[],
+  fallbackStart: number,
+): Promise<DayEntries[]> {
+  if (rows.length === 0) return [];
+
+  let rangeStart = Number.POSITIVE_INFINITY;
+  let rangeEnd = Number.NEGATIVE_INFINITY;
+
+  for (const row of rows) {
+    const dayStart = parseDayKey(row.date)?.getTime() ?? startOfDay(fallbackStart).getTime();
+    rangeStart = Math.min(rangeStart, dayStart);
+    rangeEnd = Math.max(rangeEnd, addDays(dayStart, 1).getTime());
+  }
+
+  const visits = await getVisitsBetween(rangeStart, rangeEnd);
+  const visitsByDate = new Map<string, VisitRecord[]>();
+
+  for (const visit of visits) {
+    const date = dayKey(visit.visitedAt);
+    const group = visitsByDate.get(date);
+    if (group) group.push(visit);
+    else visitsByDate.set(date, [visit]);
+  }
+
+  const pages = await db.pages.bulkGet([...new Set(visits.map((visit) => visit.url))]);
   const pageMap = new Map<string, PageRecord>();
 
   for (const page of pages) {
     if (page) pageMap.set(page.url, page);
   }
 
-  const days = page
-    .map((row, index) => buildDayEntries(row.date, visitsPerDay[index] ?? [], pageMap))
-    .filter((day): day is DayEntries => day !== null);
-
-  return { days, hasMore: rows.length > limit };
+  return rows
+    .map((row) => buildDayEntries(row.date, visitsByDate.get(row.date) ?? [], pageMap))
+    .filter((day): day is DayEntries => day !== null)
+    .sort((left, right) => right.date.localeCompare(left.date));
 }
 
 export async function getRecentPages(limit = 8): Promise<PageRecord[]> {

@@ -4,7 +4,8 @@ import { parseDayKey } from '@/utils/date';
 import { getEntryDaysPage } from '@/utils/history/query';
 import type { DayEntries } from '@/utils/history/types';
 
-const INITIAL_DAYS = 7;
+const INITIAL_DAYS = 1;
+const PAGE_DAYS = 7;
 
 interface EntriesInRangeResult {
   days: DayEntries[];
@@ -84,7 +85,7 @@ export function useEntriesInRange(
     const request = requestRef.current;
     setLoadingMore(true);
 
-    void getEntryDaysPage(start, end, { limit: INITIAL_DAYS, before: oldest })
+    void getEntryDaysPage(start, end, { limit: PAGE_DAYS, before: oldest })
       .then((page) => {
         if (request !== requestRef.current) return;
         const known = new Set(days.map((day) => day.date));
