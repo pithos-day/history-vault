@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { addDays, addMonths, dayKey, formatWeekday, startOfMonth, startOfWeek } from '@/utils/date';
+import {
+  addCalendarDays,
+  addMonthsToMonthStart,
+  dayKey,
+  formatWeekday,
+  startOfMonth,
+  startOfWeek,
+} from '@/utils/date';
 import type { CalendarDayActivity } from '@/utils/history/types';
 import { DayCell } from './DayCell';
 
@@ -23,7 +30,7 @@ export function CalendarSidebar({
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedKey = dayKey(selectedDate);
   const weekStart = startOfWeek(new Date(), weekStartsOn);
-  const weekdays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const weekdays = Array.from({ length: 7 }, (_, index) => addCalendarDays(weekStart, index));
   const days = useMemo(() => buildCalendarDays(months, weekStartsOn), [months, weekStartsOn]);
   const maxViews = useMemo(() => {
     let max = 0;
@@ -37,7 +44,7 @@ export function CalendarSidebar({
   const lastMonth = months[months.length - 1];
   const monthCount = months.length;
   const rangeStart = firstMonth ? startOfMonth(firstMonth).getTime() : 0;
-  const rangeEnd = lastMonth ? addMonths(startOfMonth(lastMonth), 1).getTime() : 0;
+  const rangeEnd = lastMonth ? addMonthsToMonthStart(lastMonth, 1).getTime() : 0;
 
   useEffect(() => {
     if (monthCount === 0) return;
@@ -95,11 +102,11 @@ function buildCalendarDays(months: Date[], weekStartsOn: 0 | 1): Date[] {
   const first = startOfMonth(months[0] as Date);
   const last = startOfMonth(months[months.length - 1] as Date);
   const gridStart = startOfWeek(first, weekStartsOn);
-  const lastDay = addDays(addMonths(last, 1), -1);
-  const gridEnd = addDays(startOfWeek(lastDay, weekStartsOn), 7);
+  const lastDay = addCalendarDays(addMonthsToMonthStart(last, 1), -1);
+  const gridEnd = addCalendarDays(startOfWeek(lastDay, weekStartsOn), 7);
   const days: Date[] = [];
 
-  for (let date = gridStart; date < gridEnd; date = addDays(date, 1)) {
+  for (let date = gridStart; date < gridEnd; date = addCalendarDays(date, 1)) {
     days.push(date);
   }
 

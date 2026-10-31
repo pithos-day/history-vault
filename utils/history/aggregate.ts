@@ -1,4 +1,4 @@
-import { addDays, dayKey, formatHour, formatShortDate, startOfDay } from '../date';
+import { addCalendarDays, dayKey, formatHour, formatShortDate, startOfDay } from '../date';
 import { categorizeTransition, emptyTransitionCounts } from './transitions';
 import type {
   ActivityPoint,
@@ -109,7 +109,11 @@ function buildDailySeries(
   const last = startOfDay(end - 1);
   const points: ActivityPoint[] = [];
 
-  for (let cursor = first; cursor.getTime() <= last.getTime(); cursor = addDays(cursor, 1)) {
+  for (
+    let cursor = first;
+    cursor.getTime() <= last.getTime();
+    cursor = addCalendarDays(cursor, 1)
+  ) {
     const day = dayMap.get(dayKey(cursor));
     points.push({
       label: formatShortDate(cursor),

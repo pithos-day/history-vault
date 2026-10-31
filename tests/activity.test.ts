@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Browser } from 'wxt/browser';
-import { addDays, dayKey, getMonthRange, startOfDay } from '../utils/date';
+import { addCalendarDays, dayKey, getMonthRange, startOfDay } from '../utils/date';
 import { db } from '../utils/db';
 import { ingestHistoryItem } from '../utils/history/collect';
 import {
@@ -62,7 +62,7 @@ describe('day activity summary', () => {
 
     const activity = await getCalendarActivity(
       startOfDay(day).getTime(),
-      addDays(day, 1).getTime(),
+      addCalendarDays(day, 1).getTime(),
     );
 
     expect(activity.get(dayKey(day))).toEqual({ views: 3, pages: 2 });
@@ -119,11 +119,17 @@ describe('day activity summary', () => {
     await ingest('https://b.test/', 'B', [visit('b1', ten + 1000)]);
 
     await deleteUrlVisitsBetween('https://a.test/', ten + 200_000, ten + 400_000);
-    let activity = await getCalendarActivity(startOfDay(ten).getTime(), addDays(ten, 1).getTime());
+    let activity = await getCalendarActivity(
+      startOfDay(ten).getTime(),
+      addCalendarDays(ten, 1).getTime(),
+    );
     expect(activity.get(dayKey(ten))).toEqual({ views: 2, pages: 2 });
 
     await deleteUrlFromVault('https://a.test/');
-    activity = await getCalendarActivity(startOfDay(ten).getTime(), addDays(ten, 1).getTime());
+    activity = await getCalendarActivity(
+      startOfDay(ten).getTime(),
+      addCalendarDays(ten, 1).getTime(),
+    );
     expect(activity.get(dayKey(ten))).toEqual({ views: 1, pages: 1 });
 
     await deleteDayFromVault(ten);

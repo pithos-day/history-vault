@@ -1,7 +1,7 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import {
-  addMonths,
+  addMonthsToMonthStart,
   clampDateToMonth,
   dayKey,
   formatDateHeader,
@@ -424,7 +424,7 @@ function hasWelcomeParam(): boolean {
 }
 
 function shiftMonth(date: Date, delta: number): Date {
-  const shifted = addMonths(date, delta);
+  const shifted = addMonthsToMonthStart(date, delta);
   return clampDateToMonth(new Date(shifted.getFullYear(), shifted.getMonth(), date.getDate()));
 }
 
@@ -437,7 +437,11 @@ function buildCalendarMonths(
   const last = startOfMonth(Math.max(bounds?.latest ?? selected, selected));
   const months: Date[] = [];
 
-  for (let cursor = first; cursor.getTime() <= last.getTime(); cursor = addMonths(cursor, 1)) {
+  for (
+    let cursor = first;
+    cursor.getTime() <= last.getTime();
+    cursor = addMonthsToMonthStart(cursor, 1)
+  ) {
     months.push(cursor);
   }
 

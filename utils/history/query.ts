@@ -1,4 +1,4 @@
-import { addDays, dayKey, getDayRange, parseDayKey, startOfDay } from '../date';
+import { addCalendarDays, dayKey, getDayRange, parseDayKey, startOfDay } from '../date';
 import { db } from '../db';
 import { bumpVaultRevision } from '../vault-events';
 import { getDayActivity, recomputeActivityForVisits } from './activity';
@@ -75,7 +75,7 @@ async function buildDayEntriesForRows(
   for (const row of rows) {
     const dayStart = parseDayKey(row.date)?.getTime() ?? startOfDay(fallbackStart).getTime();
     rangeStart = Math.min(rangeStart, dayStart);
-    rangeEnd = Math.max(rangeEnd, addDays(dayStart, 1).getTime());
+    rangeEnd = Math.max(rangeEnd, addCalendarDays(dayStart, 1).getTime());
   }
 
   const visits = await getVisitsBetween(rangeStart, rangeEnd);

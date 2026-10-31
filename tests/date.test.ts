@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addDays,
+  addCalendarDays,
   dayKey,
   formatDateGroupHeader,
   formatDateRange,
@@ -48,7 +48,7 @@ describe('date helpers', () => {
   });
 
   it('handles day arithmetic across month boundaries', () => {
-    expect(dayKey(addDays(startOfDay(new Date(2025, 8, 30)), 1))).toBe('2025-10-01');
+    expect(dayKey(addCalendarDays(startOfDay(new Date(2025, 8, 30)), 1))).toBe('2025-10-01');
   });
 
   it('formats detailed times and long weekdays', () => {

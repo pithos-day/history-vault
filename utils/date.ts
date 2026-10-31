@@ -48,12 +48,14 @@ export function startOfMonth(input: Date | number): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-export function addDays(input: Date | number, days: number): Date {
+/** Adds calendar days and truncates the time to 00:00. */
+export function addCalendarDays(input: Date | number, days: number): Date {
   const date = new Date(input);
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
-export function addMonths(input: Date | number, months: number): Date {
+/** Returns the first day of the month `months` months after `input`. */
+export function addMonthsToMonthStart(input: Date | number, months: number): Date {
   const date = new Date(input);
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
@@ -61,28 +63,29 @@ export function addMonths(input: Date | number, months: number): Date {
 export function startOfWeek(input: Date | number, weekStartsOn: 0 | 1 = 0): Date {
   const date = startOfDay(input);
   const diff = (date.getDay() - weekStartsOn + 7) % 7;
-  return addDays(date, -diff);
+  return addCalendarDays(date, -diff);
 }
 
-export function endOfDay(input: Date | number): Date {
-  return addDays(startOfDay(input), 1);
+/** Returns the next day's 00:00, i.e. the exclusive end of the input day. */
+export function startOfNextDay(input: Date | number): Date {
+  return addCalendarDays(startOfDay(input), 1);
 }
 
-function endOfMonth(input: Date | number): Date {
-  return addMonths(startOfMonth(input), 1);
+function startOfNextMonth(input: Date | number): Date {
+  return addMonthsToMonthStart(startOfMonth(input), 1);
 }
 
 export function getDayRange(input: Date | number): { start: number; end: number } {
   return {
     start: startOfDay(input).getTime(),
-    end: endOfDay(input).getTime(),
+    end: startOfNextDay(input).getTime(),
   };
 }
 
 export function getMonthRange(input: Date | number): { start: number; end: number } {
   return {
     start: startOfMonth(input).getTime(),
-    end: endOfMonth(input).getTime(),
+    end: startOfNextMonth(input).getTime(),
   };
 }
 
@@ -93,14 +96,14 @@ export function getWeekRange(
   const start = startOfWeek(input, weekStartsOn);
   return {
     start: start.getTime(),
-    end: addDays(start, 7).getTime(),
+    end: addCalendarDays(start, 7).getTime(),
   };
 }
 
 export function getMonthGrid(input: Date | number, weekStartsOn: 0 | 1 = 0): Date[] {
   const first = startOfMonth(input);
   const gridStart = startOfWeek(first, weekStartsOn);
-  return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+  return Array.from({ length: 42 }, (_, index) => addCalendarDays(gridStart, index));
 }
 
 export function isSameMonth(a: Date | number, b: Date | number): boolean {

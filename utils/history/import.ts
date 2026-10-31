@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import { dayKey, endOfDay, startOfDay } from '../date';
+import { dayKey, startOfDay, startOfNextDay } from '../date';
 import { getSettings } from '../settings';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
@@ -38,7 +38,7 @@ export function defaultImportState(now = Date.now()): ImportState {
     phase: 'idle',
     startedAt: now,
     updatedAt: now,
-    cursorEnd: endOfDay(now).getTime(),
+    cursorEnd: startOfNextDay(now).getTime(),
     windowStart: startOfDay(now).getTime(),
     daysDone: 0,
     daysTotal: 0,
@@ -66,7 +66,7 @@ export async function startImport(
   const settings = await getSettings();
   const windowDays = options.windowDays ?? settings.importWindowDays;
   const now = Date.now();
-  const cursorEnd = endOfDay(now).getTime();
+  const cursorEnd = startOfNextDay(now).getTime();
   const windowStart = windowDays > 0 ? startOfDay(now - windowDays * DAY_MS).getTime() : 0;
   const daysTotal =
     windowDays > 0 ? Math.max(1, Math.ceil((cursorEnd - windowStart) / DAY_MS)) : MAX_DAYS;

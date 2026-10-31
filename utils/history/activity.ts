@@ -1,4 +1,4 @@
-import { addDays, dayKey, parseDayKey, startOfDay } from '../date';
+import { addCalendarDays, dayKey, parseDayKey, startOfDay } from '../date';
 import { db } from '../db';
 import type { DayActivityRecord, VisitRecord } from './types';
 
@@ -28,7 +28,7 @@ export async function addVisitsToActivity(visits: VisitRecord[]): Promise<void> 
   }
 
   for (const group of groups.values()) {
-    const end = addDays(group.start, 1).getTime();
+    const end = addCalendarDays(group.start, 1).getTime();
     const previousVisits = await db.visits
       .where('[url+visitedAt]')
       .between([group.url, group.start], [group.url, end], true, false)
@@ -63,7 +63,7 @@ async function recomputeDayActivity(date: string): Promise<void> {
   if (!dayStart) return;
 
   const start = dayStart.getTime();
-  const end = addDays(dayStart, 1).getTime();
+  const end = addCalendarDays(dayStart, 1).getTime();
   const visits = await db.visits.where('visitedAt').between(start, end, true, false).toArray();
 
   if (visits.length === 0) {
