@@ -6,11 +6,7 @@ import { isOneOf } from '../validation';
 import { bumpVaultRevision } from '../vault-events';
 import { ingestHistoryItem } from './collect';
 import { getVaultEpoch } from './epoch';
-import {
-  removeInferredRedirectVisits,
-  removeRedirectedVisits,
-  removeSupersededSameDocumentVisits,
-} from './query';
+import { cleanupHistoryRange, removeRedirectedVisits } from './query';
 import { refreshRedirectMarkers } from './redirects';
 import type { ImportState } from './types';
 
@@ -275,8 +271,7 @@ async function processRange(
   }
 
   await removeRedirectedVisits(start, end);
-  await removeInferredRedirectVisits(start, end);
-  await removeSupersededSameDocumentVisits(start, end);
+  await cleanupHistoryRange(start, end);
   return { pages: matchedPages, visits };
 }
 
