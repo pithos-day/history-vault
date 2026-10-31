@@ -48,9 +48,13 @@ export async function getEntryDaysPage(
   options: { limit?: number; before?: string } = {},
 ): Promise<EntryDaysPage> {
   const limit = options.limit ?? ENTRY_PAGE_DAYS;
+  const upper = options.before ?? dayKey(end - 1);
+  // A `before` cursor is exclusive so the next page does not repeat that day;
+  // the first page includes the final day of the range.
+  const includeUpper = options.before === undefined;
   const rows = await db.activity
     .where('date')
-    .between(dayKey(start), options.before ?? dayKey(end - 1), true, options.before === undefined)
+    .between(dayKey(start), upper, true, includeUpper)
     .reverse()
     .limit(limit + 1)
     .toArray();
