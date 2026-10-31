@@ -11,7 +11,7 @@ import {
   startOfMonth,
 } from '@/utils/date';
 import type { EntryGroup } from '@/utils/history/types';
-import { sendVaultMessage } from '@/utils/messages';
+import { sendVaultMessage, type VaultRequest } from '@/utils/messages';
 import { isSupportedUrl } from '@/utils/url';
 import { CalendarSidebar } from './components/CalendarSidebar';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -150,6 +150,20 @@ export default function App() {
     setToast({ id: Date.now(), message });
   }, []);
 
+  const runVaultAction = useCallback(
+    async (request: VaultRequest, successMessage: string, onSuccess?: () => void) => {
+      const response = await sendVaultMessage(request);
+      if (!response.ok) {
+        showToast(response.error);
+        return;
+      }
+
+      onSuccess?.();
+      showToast(successMessage);
+    },
+    [showToast],
+  );
+
   const handleOpen = useCallback(
     (url: string) => {
       if (!isSupportedUrl(url)) {
@@ -215,18 +229,14 @@ export default function App() {
         message: `「${entry.title}」を${formatDateHeader(entry.latestVisit)}のVault履歴から削除しますか？この操作は元に戻せません。`,
         confirmLabel: '削除',
         danger: true,
-        action: async () => {
-          const response = await sendVaultMessage({
-            type: 'delete-url',
-            url: entry.url,
-            date: dayKey(entry.latestVisit),
-          });
-          if (!response.ok) showToast(response.error);
-          else showToast('履歴を削除しました。');
-        },
+        action: () =>
+          runVaultAction(
+            { type: 'delete-url', url: entry.url, date: dayKey(entry.latestVisit) },
+            '履歴を削除しました。',
+          ),
       });
     },
-    [showToast],
+    [runVaultAction],
   );
 
   const handleDeleteDay = useCallback(
@@ -236,14 +246,14 @@ export default function App() {
         message: `${formatDateHeader(date)}の履歴をVaultから削除しますか？この操作は元に戻せません。`,
         confirmLabel: '削除',
         danger: true,
-        action: async () => {
-          const response = await sendVaultMessage({ type: 'delete-day', date: dayKey(date) });
-          if (!response.ok) showToast(response.error);
-          else showToast('この日の履歴を削除しました。');
-        },
+        action: () =>
+          runVaultAction(
+            { type: 'delete-day', date: dayKey(date) },
+            'この日の履歴を削除しました。',
+          ),
       });
     },
-    [showToast],
+    [runVaultAction],
   );
 
   const handleClearVault = useCallback(() => {
@@ -253,24 +263,17 @@ export default function App() {
         '保存されているすべてのページと訪問履歴を削除します。この操作は元に戻せません。必要なら先にエクスポートしてください。',
       confirmLabel: '全消去',
       danger: true,
-      action: async () => {
-        const response = await sendVaultMessage({ type: 'clear-vault' });
-        if (!response.ok) showToast(response.error);
-        else {
+      action: () =>
+        runVaultAction({ type: 'clear-vault' }, 'Vaultを全消去しました。', () => {
           setSettingsOpen(false);
-          showToast('Vaultを全消去しました。');
-        }
-      },
+        }),
     });
-  }, [showToast]);
+  }, [runVaultAction]);
 
   const handleStartImport = useCallback(() => {
     setDismissedImport(false);
-    void sendVaultMessage({ type: 'start-import', reset: true }).then((response) => {
-      if (!response.ok) showToast(response.error);
-      else showToast('履歴のインポートを開始しました。');
-    });
-  }, [showToast]);
+    void runVaultAction({ type: 'start-import', reset: true }, '履歴のインポートを開始しました。');
+  }, [runVaultAction]);
 
   const handleCloseWelcome = useCallback(() => {
     setWelcomeOpen(false);
