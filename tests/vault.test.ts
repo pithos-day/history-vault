@@ -8,6 +8,7 @@ import {
   deleteDayFromVault,
   deleteUrlFromVault,
   getVaultCounts,
+  removeInferredRedirectVisits,
   removeSupersededSameDocumentVisits,
 } from '../utils/history/query';
 import type { PageRecord, VisitRecord } from '../utils/history/types';
@@ -182,6 +183,30 @@ describe('vault maintenance', () => {
     expect(await db.visits.count()).toBe(1);
     expect(await db.pages.get('https://example.com/a')).toBeUndefined();
     expect(await db.pages.get('https://other.test/b')).toBeDefined();
+  });
+
+  it('removes inferred redirect hops and their pages', async () => {
+    const at = new Date(2025, 8, 25, 10).getTime();
+    const firstUrl = 'http://example.com/';
+    const secondUrl = 'https://example.com/';
+    const finalUrl = 'https://www.example.com/home';
+
+    await db.pages.bulkPut([page(firstUrl, at), page(secondUrl, at), page(finalUrl, at)]);
+    await db.visits.bulkPut([
+      { ...visit('101', firstUrl, at), referringVisitId: 'previous' },
+      { ...visit('102', secondUrl, at), referringVisitId: '101' },
+      { ...visit('103', finalUrl, at), referringVisitId: '102' },
+    ]);
+
+    const removed = await removeInferredRedirectVisits(at, at + 1);
+
+    expect(removed).toBe(2);
+    expect(await db.visits.get('101')).toBeUndefined();
+    expect(await db.visits.get('102')).toBeUndefined();
+    expect(await db.visits.get('103')).toBeDefined();
+    expect(await db.pages.get(firstUrl)).toBeUndefined();
+    expect(await db.pages.get(secondUrl)).toBeUndefined();
+    expect(await db.pages.get(finalUrl)).toBeDefined();
   });
 
   it('removes saved same-document URL variants and their pages', async () => {

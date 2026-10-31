@@ -1,9 +1,53 @@
 import { describe, expect, it } from 'vitest';
 import {
   findRedirectSource,
+  findSupersededRedirectVisitIds,
   isRedirectedVisit,
   pruneRedirectMarkers,
 } from '../utils/history/redirects';
+
+describe('inferred redirect chains', () => {
+  it('keeps only the final hop when every hop shares a timestamp', () => {
+    const ids = findSupersededRedirectVisitIds([
+      { id: '10', url: 'http://example.test/', visitedAt: 1000, referringVisitId: '4' },
+      { id: '11', url: 'https://example.test/', visitedAt: 1000, referringVisitId: '10' },
+      { id: '12', url: 'https://www.example.test/home', visitedAt: 1000, referringVisitId: '11' },
+      { id: '13', url: 'https://example.test/next', visitedAt: 3000, referringVisitId: '12' },
+    ]);
+
+    expect(ids).toEqual(['10', '11']);
+  });
+
+  it('keeps visits that only share a timestamp', () => {
+    const ids = findSupersededRedirectVisitIds([
+      { id: '20', url: 'https://a.test/', visitedAt: 2000, referringVisitId: '1' },
+      { id: '21', url: 'https://b.test/', visitedAt: 2000, referringVisitId: '2' },
+    ]);
+
+    expect(ids).toEqual([]);
+  });
+
+  it('ignores chains outside the timestamp, reloads and synthetic visits', () => {
+    const ids = findSupersededRedirectVisitIds([
+      { id: '30', url: 'https://a.test/', visitedAt: 3000, referringVisitId: '1' },
+      { id: '31', url: 'https://b.test/', visitedAt: 4000, referringVisitId: '30' },
+      { id: '32', url: 'https://c.test/', visitedAt: 5000, referringVisitId: '32' },
+      { id: 'fallback:a', url: 'https://d.test/', visitedAt: 6000, referringVisitId: 'fallback:b' },
+      { id: '33', url: 'https://e.test/', visitedAt: 7000, referringVisitId: 'fallback:a' },
+    ]);
+
+    expect(ids).toEqual([]);
+  });
+
+  it('does not drop the only visit when a redirect points at itself', () => {
+    const ids = findSupersededRedirectVisitIds([
+      { id: '40', url: 'https://a.test/', visitedAt: 8000, referringVisitId: '40' },
+      { id: '41', url: 'https://a.test/', visitedAt: 9000, referringVisitId: '40' },
+    ]);
+
+    expect(ids).toEqual([]);
+  });
+});
 
 describe('redirect detection', () => {
   it('treats the pending navigation as the source of a server redirect', () => {

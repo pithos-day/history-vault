@@ -13,11 +13,11 @@ import {
   waitForImportLockRelease,
 } from '@/utils/history/import';
 import {
+  cleanupHistoryRange,
   clearVaultData,
   deleteDayFromVault,
   deleteUrlFromVault,
   deleteUrlVisitsBetween,
-  removeSupersededSameDocumentVisits,
 } from '@/utils/history/query';
 import {
   addRedirectMarker,
@@ -155,7 +155,7 @@ async function handleInstalled(reason: string): Promise<void> {
   }
 
   const state = await ensureImportStarted();
-  await cleanupRecentSameDocumentVisits();
+  await cleanupRecentVisits();
   await syncBadge(state);
 }
 
@@ -163,7 +163,7 @@ async function handleStartup(): Promise<void> {
   await ensureAlarms();
 
   const state = await ensureImportStarted();
-  await cleanupRecentSameDocumentVisits();
+  await cleanupRecentVisits();
   await syncBadge(state);
 }
 
@@ -340,9 +340,9 @@ async function ensureAlarms(): Promise<void> {
   await browser.alarms.create(IMPORT_ALARM, { periodInMinutes: 1 });
 }
 
-async function cleanupRecentSameDocumentVisits(): Promise<void> {
+async function cleanupRecentVisits(): Promise<void> {
   const end = Date.now();
-  await removeSupersededSameDocumentVisits(end - RECENT_CLEANUP_MS, end);
+  await cleanupHistoryRange(end - RECENT_CLEANUP_MS, end);
 }
 
 async function syncBadge(state: ImportState): Promise<void> {

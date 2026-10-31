@@ -10,7 +10,7 @@ import {
   isSameMonth,
   startOfMonth,
 } from '@/utils/date';
-import { removeSupersededSameDocumentVisits } from '@/utils/history/query';
+import { cleanupHistoryRange } from '@/utils/history/query';
 import { RECENT_CLEANUP_MS } from '@/utils/history/same-document';
 import type { EntryGroup } from '@/utils/history/types';
 import { sendVaultMessage } from '@/utils/messages';
@@ -142,7 +142,7 @@ export default function App() {
       const now = Date.now();
       if (now - lastRun < 3000) return;
       lastRun = now;
-      void removeSupersededSameDocumentVisits(now - RECENT_CLEANUP_MS, now).catch(() => {});
+      void cleanupHistoryRange(now - RECENT_CLEANUP_MS, now).catch(() => {});
     };
 
     cleanup();

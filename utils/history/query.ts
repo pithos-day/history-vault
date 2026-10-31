@@ -4,7 +4,7 @@ import { bumpVaultRevision } from '../vault-events';
 import { getDayActivity, recomputeActivityForVisits } from './activity';
 import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
-import { refreshRedirectMarkers } from './redirects';
+import { findSupersededRedirectVisitIds, refreshRedirectMarkers } from './redirects';
 import { findSupersededVisitIds } from './same-document';
 import type {
   CalendarDayActivity,
@@ -160,6 +160,32 @@ export async function removeRedirectedVisits(start: number, end: number): Promis
 }
 
 /**
+ * Removes redirect hops that were imported before a live navigation marker
+ * existed. Chromium stores every hop with the same timestamp and links each
+ * hop to the previous visit, so the final hop can be kept without relying on
+ * webNavigation events.
+ */
+export async function removeInferredRedirectVisits(start: number, end: number): Promise<number> {
+  const visits = await getVisitsBetween(start, end);
+  if (visits.length < 2) return 0;
+
+  const ids = findSupersededRedirectVisitIds(visits);
+  if (ids.length === 0) return 0;
+
+  const idSet = new Set(ids);
+  const removed = visits.filter((visit) => idSet.has(visit.id));
+  await db.visits.bulkDelete(ids);
+  await recomputeActivityForVisits(removed);
+
+  for (const url of new Set(removed.map((visit) => visit.url))) {
+    await cleanupPage(url);
+  }
+
+  await bumpVaultRevision();
+  return ids.length;
+}
+
+/**
  * Removes URL variants left by same-document navigations that were imported
  * or recorded before the live collapse existed. Untitled/URL-titled visits are
  * dropped when a titled visit follows, and titled visits are dropped when the
@@ -202,6 +228,16 @@ export async function removeSupersededSameDocumentVisits(
 
   await bumpVaultRevision();
   return ids.length;
+}
+
+/**
+ * Applies the write-time cleanup rules to a range. Import and the recent
+ * history view both use this so redirect hops and same-document variants are
+ * treated the same way regardless of how the visits reached the vault.
+ */
+export async function cleanupHistoryRange(start: number, end: number): Promise<void> {
+  await removeInferredRedirectVisits(start, end);
+  await removeSupersededSameDocumentVisits(start, end);
 }
 
 export async function deleteDayFromVault(date: Date | number): Promise<void> {
