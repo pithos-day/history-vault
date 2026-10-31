@@ -80,7 +80,31 @@ export async function getRecentPages(limit = 8): Promise<PageRecord[]> {
   return db.pages.orderBy('lastVisitTime').reverse().limit(limit).toArray();
 }
 
-export async function getVaultDateBounds(): Promise<{ earliest: number; latest: number } | null> {
+export interface VaultOverview {
+  bounds: { earliest: number; latest: number } | null;
+  activity: Map<string, CalendarDayActivity>;
+}
+
+/**
+ * The calendar only needs one row per day. Reading the activity table once
+ * gives both the date bounds and every heat-map cell, so opening the page does
+ * not need separate first/last visit scans.
+ */
+export async function getVaultOverview(): Promise<VaultOverview> {
+  const rows = await db.activity.orderBy('date').toArray();
+  if (rows.length === 0) {
+    return { bounds: await getVaultDateBounds(), activity: new Map() };
+  }
+
+  const first = parseDayKey(rows[0]?.date ?? '');
+  const last = parseDayKey(rows[rows.length - 1]?.date ?? '');
+  return {
+    bounds: first && last ? { earliest: first.getTime(), latest: last.getTime() } : null,
+    activity: new Map(rows.map((day) => [day.date, { views: day.views, pages: day.pages }])),
+  };
+}
+
+async function getVaultDateBounds(): Promise<{ earliest: number; latest: number } | null> {
   const [first, last] = await Promise.all([
     db.visits.orderBy('visitedAt').first(),
     db.visits.orderBy('visitedAt').last(),

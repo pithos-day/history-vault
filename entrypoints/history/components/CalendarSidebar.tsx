@@ -8,7 +8,6 @@ interface CalendarSidebarProps {
   activity: Map<string, CalendarDayActivity>;
   selectedDate: Date;
   weekStartsOn: 0 | 1;
-  maxViews: number;
   theme: 'light' | 'dark';
   onSelect: (date: Date) => void;
 }
@@ -18,7 +17,6 @@ export function CalendarSidebar({
   activity,
   selectedDate,
   weekStartsOn,
-  maxViews,
   theme,
   onSelect,
 }: CalendarSidebarProps) {
@@ -27,6 +25,14 @@ export function CalendarSidebar({
   const weekStart = startOfWeek(new Date(), weekStartsOn);
   const weekdays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
   const days = useMemo(() => buildCalendarDays(months, weekStartsOn), [months, weekStartsOn]);
+  const maxViews = useMemo(() => {
+    let max = 0;
+    for (const date of days) {
+      const day = activity.get(dayKey(date));
+      if (day && day.views > max) max = day.views;
+    }
+    return max;
+  }, [days, activity]);
   const firstMonth = months[0];
   const lastMonth = months[months.length - 1];
   const monthCount = months.length;

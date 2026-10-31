@@ -25,7 +25,6 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { StatsPanel } from './components/StatsPanel';
 import { TopBar } from './components/TopBar';
 import { WelcomeDialog } from './components/WelcomeDialog';
-import { useCalendarActivity } from './hooks/useCalendarActivity';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { useEntriesInRange } from './hooks/useEntriesInRange';
 import { useImportRunner } from './hooks/useImportRunner';
@@ -34,7 +33,7 @@ import { useRangeStats } from './hooks/useRangeStats';
 import { useResolvedTheme } from './hooks/useResolvedTheme';
 import { useSearch } from './hooks/useSearch';
 import { useSettings } from './hooks/useSettings';
-import { useVaultDateBounds } from './hooks/useVaultDateBounds';
+import { useVaultOverview } from './hooks/useVaultOverview';
 import { useVaultRevision } from './hooks/useVaultRevision';
 import { loadViewState, saveViewState, type ViewState } from './lib/viewState';
 
@@ -97,26 +96,11 @@ export default function App() {
     loadMore: loadMoreEntries,
   } = useEntriesInRange(range.start, range.end, dataRevision, !searching);
   const { results, loading: searchLoading } = useSearch(query, dataRevision);
-  const bounds = useVaultDateBounds(dataRevision);
+  const { activity: calendarActivity, bounds } = useVaultOverview(dataRevision);
   const calendarMonths = useMemo(
     () => buildCalendarMonths(bounds, selectedDate),
     [bounds, selectedDate],
   );
-  const calendarRange = useMemo(() => {
-    const first = getMonthRange(calendarMonths[0] ?? selectedDate);
-    const last = getMonthRange(calendarMonths[calendarMonths.length - 1] ?? selectedDate);
-    return { start: first.start, end: last.end };
-  }, [calendarMonths, selectedDate]);
-  const calendarActivity = useCalendarActivity(
-    calendarRange.start,
-    calendarRange.end,
-    dataRevision,
-  );
-  const calendarMaxViews = useMemo(() => {
-    let max = 0;
-    for (const day of calendarActivity.values()) max = Math.max(max, day.views);
-    return max;
-  }, [calendarActivity]);
 
   const title = searching ? '検索結果' : formatDateRange(range.start, range.end);
 
@@ -361,7 +345,6 @@ export default function App() {
             {viewState.calendarVisible ? (
               <CalendarSidebar
                 activity={calendarActivity}
-                maxViews={calendarMaxViews}
                 months={calendarMonths}
                 onSelect={handleSelectDate}
                 selectedDate={selectedDate}
