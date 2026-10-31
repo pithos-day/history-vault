@@ -24,6 +24,7 @@ interface IngestOptions {
 
 export interface IngestResult {
   insertedVisits: number;
+  matchedVisits: number;
   page: PageRecord | null;
 }
 
@@ -32,37 +33,34 @@ export async function ingestHistoryItem(
   options: IngestOptions = {},
 ): Promise<IngestResult> {
   const url = item.url;
-  if (!isSupportedUrl(url)) return { insertedVisits: 0, page: null };
+  if (!isSupportedUrl(url)) return { insertedVisits: 0, matchedVisits: 0, page: null };
 
   const host = getHost(url);
   const existingPage = await db.pages.get(url);
   const visitItems = await getVisitsSafe(url);
-  const visits = toVisitRecords(url, host, visitItems, options.source ?? 'live').filter(
-    (visit) =>
-      (options.since === undefined || visit.visitedAt >= options.since) &&
-      (options.until === undefined || visit.visitedAt < options.until),
-  );
+  const visits = resolveVisits(url, host, visitItems, item, options);
 
-  if (visits.length === 0 && item.lastVisitTime) {
-    visits.push({
-      id: `fallback:${url}:${item.lastVisitTime}`,
-      url,
-      host,
-      visitedAt: item.lastVisitTime,
-      transition: 'link',
-      source: 'fallback',
-    });
-  }
+  // A page can be returned by history.search even when none of its visits fall
+  // inside the requested window. Never let that update page metadata: doing so
+  // attaches the current title/URL to old dates and keeps the import running
+  // through empty history forever.
+  if (visits.length === 0) return { insertedVisits: 0, matchedVisits: 0, page: null };
 
   const existingVisits = await db.visits.bulkGet(visits.map((visit) => visit.id));
   const newVisits = visits.filter((_, index) => !existingVisits[index]);
+  const existingLast = isValidTimestamp(existingPage?.lastVisitTime)
+    ? existingPage.lastVisitTime
+    : 0;
+  const existingFirst = isValidTimestamp(existingPage?.firstVisitTime)
+    ? existingPage.firstVisitTime
+    : Number.POSITIVE_INFINITY;
   const latestVisit = visits.reduce(
     (latest, visit) => Math.max(latest, visit.visitedAt),
-    existingPage?.lastVisitTime ?? 0,
+    existingLast,
   );
   const firstVisit = visits.reduce(
     (first, visit) => Math.min(first, visit.visitedAt),
-    existingPage?.firstVisitTime ?? Number.POSITIVE_INFINITY,
+    existingFirst,
   );
   const title = item.title?.trim() || existingPage?.title || '';
   const titleChanged = existingPage?.title !== title;
@@ -73,7 +71,7 @@ export async function ingestHistoryItem(
     host,
     titleLower: normalizeSearchText(title),
     urlLower: normalizeSearchText(url),
-    lastVisitTime: Math.max(latestVisit, item.lastVisitTime ?? 0),
+    lastVisitTime: latestVisit,
     firstVisitTime: Number.isFinite(firstVisit) ? firstVisit : latestVisit,
     visitCount: (existingPage?.visitCount ?? 0) + newVisits.length,
   };
@@ -89,13 +87,62 @@ export async function ingestHistoryItem(
     return newVisits.length;
   });
 
-  if (written === null) return { insertedVisits: 0, page: null };
+  if (written === null) return { insertedVisits: 0, matchedVisits: 0, page: null };
 
   if ((written > 0 || titleChanged) && options.notify !== false) {
     await bumpVaultRevision();
   }
 
-  return { insertedVisits: written, page };
+  return { insertedVisits: written, matchedVisits: visits.length, page };
+}
+
+/**
+ * Converts Chrome's visit list into records for the requested window. The
+ * fallback is only allowed when Chrome returned no usable visits at all and
+ * the item's own timestamp is inside the window; otherwise a page whose last
+ * visit is today would be written into every older day being imported.
+ */
+export function resolveVisits(
+  url: string,
+  host: string,
+  visitItems: Browser.history.VisitItem[],
+  item: Browser.history.HistoryItem,
+  options: Pick<IngestOptions, 'source' | 'since' | 'until'> = {},
+): VisitRecord[] {
+  const allVisits = toVisitRecords(url, host, visitItems, options.source ?? 'live');
+  const visits = allVisits.filter((visit) => isWithinWindow(visit.visitedAt, options));
+  if (visits.length > 0) return visits;
+
+  const fallbackTime = item.lastVisitTime;
+  if (
+    allVisits.length === 0 &&
+    isValidTimestamp(fallbackTime) &&
+    isWithinWindow(fallbackTime, options)
+  ) {
+    return [
+      {
+        id: `fallback:${url}:${fallbackTime}`,
+        url,
+        host,
+        visitedAt: fallbackTime,
+        transition: 'link',
+        source: 'fallback',
+      },
+    ];
+  }
+
+  return [];
+}
+
+function isWithinWindow(time: number, options: Pick<IngestOptions, 'since' | 'until'>): boolean {
+  return (
+    (options.since === undefined || time >= options.since) &&
+    (options.until === undefined || time < options.until)
+  );
+}
+
+function isValidTimestamp(value: number | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
 async function getVisitsSafe(url: string): Promise<Browser.history.VisitItem[]> {
@@ -115,7 +162,7 @@ function toVisitRecords(
   const records: VisitRecord[] = [];
 
   for (const visit of visits) {
-    if (!visit.visitTime) continue;
+    if (!isValidTimestamp(visit.visitTime)) continue;
     records.push({
       id: visit.visitId,
       url,

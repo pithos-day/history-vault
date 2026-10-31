@@ -232,6 +232,7 @@ async function processRange(
   }
 
   let visits = 0;
+  let matchedPages = 0;
 
   for (let index = 0; index < items.length; index += 8) {
     if (!(await isImportLockHeld(owner))) throw new ImportCancelledError();
@@ -248,10 +249,11 @@ async function processRange(
         }),
       ),
     );
+    matchedPages += results.filter((result) => result.matchedVisits > 0).length;
     visits += results.reduce((total, result) => total + result.insertedVisits, 0);
   }
 
-  return { pages: items.length, visits };
+  return { pages: matchedPages, visits };
 }
 
 async function isImportLockHeld(owner: string): Promise<boolean> {
