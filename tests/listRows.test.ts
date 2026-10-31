@@ -9,7 +9,6 @@ function entry(url: string, latestVisit: number): EntryGroup {
     host: new URL(url).host,
     latestVisit,
     count: 1,
-    transition: 'link',
   };
 }
 

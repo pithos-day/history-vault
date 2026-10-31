@@ -57,7 +57,6 @@ function resultsToDays(results: SearchResult[]): DayEntries[] {
       host: result.page.host,
       latestVisit: result.latestVisitTime,
       count: result.count,
-      transition: 'link',
     });
     groups.set(date, day);
   }

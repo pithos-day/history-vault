@@ -399,7 +399,6 @@ function buildDayEntries(
       existing.count += 1;
       if (visit.visitedAt > existing.latestVisit) {
         existing.latestVisit = visit.visitedAt;
-        existing.transition = visit.transition;
       }
     } else {
       entries.set(visit.url, {
@@ -408,7 +407,6 @@ function buildDayEntries(
         host: page?.host || visit.host,
         latestVisit: visit.visitedAt,
         count: 1,
-        transition: visit.transition,
       });
     }
   }

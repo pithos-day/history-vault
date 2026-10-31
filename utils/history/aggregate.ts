@@ -1,20 +1,10 @@
 import { addCalendarDays, dayKey, formatHour, formatShortDate, startOfDay } from '../date';
 import { categorizeTransition, emptyTransitionCounts } from './transitions';
-import type {
-  ActivityPoint,
-  DayStats,
-  DomainCount,
-  RangeStats,
-  TransitionCounts,
-  VisitRecord,
-} from './types';
+import type { ActivityPoint, DomainCount, RangeStats, VisitRecord } from './types';
 
 interface MutableDay {
-  start: number;
   views: number;
   pages: Set<string>;
-  domains: Map<string, number>;
-  transitions: TransitionCounts;
   hourly: number[];
   hourlyPages: Array<Set<string>>;
 }
@@ -26,9 +16,9 @@ export function aggregateVisits(
   granularity: 'day' | 'hour',
 ): RangeStats {
   const dayMap = new Map<string, MutableDay>();
-  const allPages = new Set<string>();
   const allDomains = new Map<string, number>();
   const allTransitions = emptyTransitionCounts();
+  let allViews = 0;
 
   for (const visit of visits) {
     if (visit.visitedAt < start || visit.visitedAt >= end) continue;
@@ -37,11 +27,8 @@ export function aggregateVisits(
     let day = dayMap.get(key);
     if (!day) {
       day = {
-        start: startOfDay(visit.visitedAt).getTime(),
         views: 0,
         pages: new Set<string>(),
-        domains: new Map<string, number>(),
-        transitions: emptyTransitionCounts(),
         hourly: Array.from({ length: 24 }, () => 0),
         hourlyPages: Array.from({ length: 24 }, () => new Set<string>()),
       };
@@ -53,19 +40,13 @@ export function aggregateVisits(
 
     day.views += 1;
     day.pages.add(visit.url);
-    day.domains.set(visit.host, (day.domains.get(visit.host) ?? 0) + 1);
-    day.transitions[category] += 1;
     day.hourly[hour] = (day.hourly[hour] ?? 0) + 1;
     day.hourlyPages[hour]?.add(visit.url);
 
-    allPages.add(visit.url);
+    allViews += 1;
     allDomains.set(visit.host, (allDomains.get(visit.host) ?? 0) + 1);
     allTransitions[category] += 1;
   }
-
-  const days = [...dayMap.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([date, day]) => toDayStats(date, day));
 
   const series =
     granularity === 'hour'
@@ -77,26 +58,12 @@ export function aggregateVisits(
   return {
     start,
     end,
-    views: days.reduce((total, day) => total + day.views, 0),
-    pages: allPages.size,
-    days,
+    views: allViews,
     series,
     transitions: allTransitions,
     topDomains: toTopDomains(allDomains, 5),
     domainCount: allDomains.size,
     maxViews,
-  };
-}
-
-function toDayStats(date: string, day: MutableDay): DayStats {
-  return {
-    date,
-    start: day.start,
-    views: day.views,
-    pages: day.pages.size,
-    topDomains: toTopDomains(day.domains, 3),
-    transitions: day.transitions,
-    hourly: day.hourly,
   };
 }
 

@@ -25,16 +25,12 @@ describe('aggregateVisits', () => {
     const stats = aggregateVisits(visits, start, end, 'day');
 
     expect(stats.views).toBe(3);
-    expect(stats.pages).toBe(2);
-    expect(stats.days).toHaveLength(2);
-    expect(stats.days[0]?.views).toBe(2);
-    expect(stats.days[0]?.pages).toBe(1);
-    expect(stats.days[0]?.topDomains[0]).toEqual({ host: 'example.com', count: 2 });
     expect(stats.transitions.typed).toBe(1);
     expect(stats.transitions.link).toBe(1);
     expect(stats.transitions.reload).toBe(1);
     expect(stats.series).toHaveLength(2);
     expect(stats.series[0]?.views).toBe(2);
+    expect(stats.series[0]?.pages).toBe(1);
     expect(stats.maxViews).toBe(2);
   });
 
@@ -51,6 +47,6 @@ describe('aggregateVisits', () => {
     expect(stats.series).toHaveLength(24);
     expect(stats.series[9]?.views).toBe(2);
     expect(stats.series[9]?.pages).toBe(2);
-    expect(stats.days[0]?.hourly[9]).toBe(2);
+    expect(stats.views).toBe(2);
   });
 });

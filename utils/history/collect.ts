@@ -192,7 +192,6 @@ function toVisitRecords(
       visitedAt: visit.visitTime,
       transition: visit.transition,
       referringVisitId: visit.referringVisitId || undefined,
-      isLocal: visit.isLocal,
       source,
     });
   }

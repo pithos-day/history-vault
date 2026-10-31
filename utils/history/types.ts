@@ -34,23 +34,12 @@ export interface VisitRecord {
   visitedAt: number;
   transition: string;
   referringVisitId?: string;
-  isLocal?: boolean;
   source: 'live' | 'import' | 'fallback';
 }
 
 export interface MetaRecord {
   key: string;
   value: unknown;
-}
-
-export interface DayStats {
-  date: string;
-  start: number;
-  views: number;
-  pages: number;
-  topDomains: DomainCount[];
-  transitions: TransitionCounts;
-  hourly: number[];
 }
 
 export interface ActivityPoint {
@@ -64,8 +53,6 @@ export interface RangeStats {
   start: number;
   end: number;
   views: number;
-  pages: number;
-  days: DayStats[];
   series: ActivityPoint[];
   transitions: TransitionCounts;
   topDomains: DomainCount[];
@@ -79,7 +66,6 @@ export interface EntryGroup {
   host: string;
   latestVisit: number;
   count: number;
-  transition: string;
 }
 
 export interface DayEntries {
