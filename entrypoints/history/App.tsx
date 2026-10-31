@@ -33,7 +33,12 @@ import { useSearch } from './hooks/useSearch';
 import { useSettings } from './hooks/useSettings';
 import { useVaultOverview } from './hooks/useVaultOverview';
 import { useVaultRevision } from './hooks/useVaultRevision';
-import { loadViewState, saveViewState, type ViewState } from './lib/viewState';
+import {
+  applyInitialHistoryDate,
+  loadViewState,
+  saveViewState,
+  type ViewState,
+} from './lib/viewState';
 
 const MAX_CALENDAR_MONTHS = 24;
 
@@ -95,6 +100,19 @@ export default function App() {
   } = useEntriesInRange(range.start, range.end, dataRevision, !searching);
   const { results, loading: searchLoading } = useSearch(query, dataRevision);
   const { activity: calendarActivity, bounds } = useVaultOverview(dataRevision);
+
+  const initialSelectedDateRef = useRef(viewState.selectedDate);
+  const initialDateAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (initialDateAppliedRef.current || bounds === null) return;
+    initialDateAppliedRef.current = true;
+
+    setViewState((current) =>
+      applyInitialHistoryDate(current, initialSelectedDateRef.current, bounds.latest),
+    );
+  }, [bounds]);
+
   const calendarMonths = useMemo(
     () => buildCalendarMonths(bounds, selectedDate),
     [bounds, selectedDate],
