@@ -109,8 +109,15 @@ export async function storeVisitedItem(item: Browser.history.HistoryItem): Promi
   // item shortly after so the vault does not keep an empty title forever.
   await delay(1500);
 
-  if (isSuppressedVisit(suppressedVisits, item.url, visitedAt)) return;
-  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, visitedAt)) return;
+  if (isSuppressedVisit(suppressedVisits, item.url, visitedAt)) {
+    await deleteSameDocumentWindow(item.url, visitedAt);
+    return;
+  }
+
+  if (isRedirectedVisit(getCachedRedirectMarkers(), item.url, visitedAt)) {
+    await deleteRedirectWindow(item.url, visitedAt);
+    return;
+  }
 
   const candidates = await browser.history.search({
     text: item.url ?? '',
