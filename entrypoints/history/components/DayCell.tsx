@@ -1,4 +1,4 @@
-import { formatDateHeader } from '@/utils/date';
+import { dayKey, formatDateHeader } from '@/utils/date';
 import { getHeatColor } from '../lib/heat';
 
 interface DayCellProps {
@@ -9,6 +9,7 @@ interface DayCellProps {
   currentMonth: boolean;
   maxViews: number;
   theme: 'light' | 'dark';
+  monthLabel?: string;
   onSelect: (date: Date) => void;
 }
 
@@ -20,6 +21,7 @@ export function DayCell({
   currentMonth,
   maxViews,
   theme,
+  monthLabel,
   onSelect,
 }: DayCellProps) {
   const classes = [
@@ -33,17 +35,18 @@ export function DayCell({
   const label = `${formatDateHeader(date)}${views > 0 ? `、${views}閲覧、${pages}ページ` : ''}`;
 
   return (
-    <div className={classes}>
+    <div className={classes} data-day={dayKey(date)}>
       <button
         aria-label={label}
         aria-pressed={selected}
         className="day-cell"
         onClick={() => onSelect(date)}
-        style={{ backgroundColor: getHeatColor(views, maxViews, theme) }}
+        style={selected ? undefined : { backgroundColor: getHeatColor(views, maxViews, theme) }}
         title={label}
         type="button"
       >
         <span className="day-number">{date.getDate()}</span>
+        {monthLabel ? <span className="day-month-label">{monthLabel}</span> : null}
       </button>
     </div>
   );

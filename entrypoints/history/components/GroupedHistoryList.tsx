@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback, useMemo, useState } from 'react';
-import { formatCount, formatDateHeader, formatRelativeDateHeader } from '@/utils/date';
+import { formatCount, formatDateGroupHeader } from '@/utils/date';
 import type { DayEntries, EntryGroup } from '@/utils/history/types';
 import { ChevronDownIcon, TrashIcon } from '../lib/icons';
 import { buildListRows, type HistoryListRow } from '../lib/listRows';
@@ -39,9 +39,15 @@ export function GroupedHistoryList({
 
   return (
     <section aria-label={ariaLabel} className="grouped-list">
+      <div aria-hidden="true" className="list-columns">
+        <span className="list-column-date">日付</span>
+        <span className="list-column-title">タイトル</span>
+        <span className="list-column-url">アドレス</span>
+        <span className="list-column-count">閲覧回数</span>
+      </div>
       <VirtualList
         empty={<span>{loading ? '読み込み中…' : emptyText}</span>}
-        estimateSize={(index) => (rows[index]?.type === 'header' ? 38 : 48)}
+        estimateSize={(index) => (rows[index]?.type === 'header' ? 24 : 26)}
         getKey={(row) =>
           row.type === 'header' ? `header-${row.date}` : `${row.entry.url}-${row.entry.latestVisit}`
         }
@@ -80,7 +86,7 @@ function DateGroupHeader({ row, onToggle, onDeleteDay }: DateGroupHeaderProps) {
           className={`list-date-chevron ${row.collapsed ? 'is-collapsed' : ''}`}
           size={14}
         />
-        <span className="list-date-label">{formatRelativeDateHeader(row.start)}</span>
+        <span className="list-date-label">{formatDateGroupHeader(row.start)}</span>
         <span className="count-badge">{formatCount(row.total)}</span>
       </button>
       {onDeleteDay ? (

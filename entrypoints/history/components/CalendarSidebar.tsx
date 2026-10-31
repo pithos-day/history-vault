@@ -1,13 +1,5 @@
-import { useEffect, useRef } from 'react';
-import {
-  addDays,
-  dayKey,
-  formatMonthLabel,
-  formatWeekday,
-  getMonthGrid,
-  monthKey,
-  startOfWeek,
-} from '@/utils/date';
+import { useEffect, useMemo, useRef } from 'react';
+import { addDays, addMonths, dayKey, formatWeekday, startOfMonth, startOfWeek } from '@/utils/date';
 import type { CalendarDayActivity } from '@/utils/history/types';
 import { DayCell } from './DayCell';
 
@@ -31,19 +23,28 @@ export function CalendarSidebar({
   onSelect,
 }: CalendarSidebarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const selectedMonth = monthKey(selectedDate);
+  const selectedKey = dayKey(selectedDate);
   const weekStart = startOfWeek(new Date(), weekStartsOn);
   const weekdays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const days = useMemo(() => buildCalendarDays(months, weekStartsOn), [months, weekStartsOn]);
+  const firstMonth = months[0];
+  const lastMonth = months[months.length - 1];
+  const monthCount = months.length;
+  const rangeStart = firstMonth ? startOfMonth(firstMonth).getTime() : 0;
+  const rangeEnd = lastMonth ? addMonths(startOfMonth(lastMonth), 1).getTime() : 0;
 
   useEffect(() => {
-    if (months.length === 0) return;
+    if (monthCount === 0) return;
     const container = scrollRef.current;
-    const target = container?.querySelector<HTMLElement>(`[data-month="${selectedMonth}"]`);
+    const target = container?.querySelector<HTMLElement>(`[data-day="${selectedKey}"]`);
     if (!container || !target) return;
 
-    const top = target.offsetTop;
-    container.scrollTo({ top: Math.max(0, top) });
-  }, [selectedMonth, months.length]);
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    if (targetRect.top >= containerRect.top && targetRect.bottom <= containerRect.bottom) return;
+
+    container.scrollTo({ top: Math.max(0, target.offsetTop - 4) });
+  }, [selectedKey, monthCount]);
 
   return (
     <aside aria-label="履歴カレンダー" className="calendar">
@@ -56,40 +57,45 @@ export function CalendarSidebar({
       </div>
 
       <div className="calendar-scroll" ref={scrollRef}>
-        {months.map((month, index) => {
-          const monthDays = getMonthGrid(month, weekStartsOn);
+        <div className="calendar-grid">
+          {days.map((date) => {
+            const key = dayKey(date);
+            const day = activity.get(key);
 
-          return (
-            <section className="calendar-month" data-month={monthKey(month)} key={monthKey(month)}>
-              <div className="calendar-month-label">
-                {index === 0 || month.getMonth() === 0
-                  ? formatMonthLabel(month)
-                  : `${month.getMonth() + 1}月`}
-              </div>
-              <div className="calendar-grid">
-                {monthDays.map((date) => {
-                  const key = dayKey(date);
-                  const day = activity.get(key);
-
-                  return (
-                    <DayCell
-                      currentMonth={date.getMonth() === month.getMonth()}
-                      date={date}
-                      key={key}
-                      maxViews={maxViews}
-                      onSelect={onSelect}
-                      pages={day?.pages ?? 0}
-                      selected={key === dayKey(selectedDate)}
-                      theme={theme}
-                      views={day?.views ?? 0}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
+            return (
+              <DayCell
+                currentMonth={date.getTime() >= rangeStart && date.getTime() < rangeEnd}
+                date={date}
+                key={key}
+                maxViews={maxViews}
+                monthLabel={date.getDate() === 1 ? `${date.getMonth() + 1}月` : undefined}
+                onSelect={onSelect}
+                pages={day?.pages ?? 0}
+                selected={key === selectedKey}
+                theme={theme}
+                views={day?.views ?? 0}
+              />
+            );
+          })}
+        </div>
       </div>
     </aside>
   );
+}
+
+function buildCalendarDays(months: Date[], weekStartsOn: 0 | 1): Date[] {
+  if (months.length === 0) return [];
+
+  const first = startOfMonth(months[0] as Date);
+  const last = startOfMonth(months[months.length - 1] as Date);
+  const gridStart = startOfWeek(first, weekStartsOn);
+  const lastDay = addDays(addMonths(last, 1), -1);
+  const gridEnd = addDays(startOfWeek(lastDay, weekStartsOn), 7);
+  const days: Date[] = [];
+
+  for (let date = gridStart; date < gridEnd; date = addDays(date, 1)) {
+    days.push(date);
+  }
+
+  return days;
 }

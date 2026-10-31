@@ -1,7 +1,6 @@
 import type { MouseEvent } from 'react';
-import { formatCount, formatTime } from '@/utils/date';
+import { formatCount, formatTime, formatTimeWithSeconds } from '@/utils/date';
 import type { EntryGroup } from '@/utils/history/types';
-import { getDisplayUrl } from '@/utils/url';
 import { Favicon } from './Favicon';
 
 interface EntryRowProps {
@@ -23,13 +22,21 @@ export function EntryRow({ entry, onOpen, onContextMenu }: EntryRowProps) {
       }}
       type="button"
     >
-      <span className="entry-time">{formatTime(entry.latestVisit)}</span>
+      <span className="entry-time">{formatTimeWithSeconds(entry.latestVisit)}</span>
       <Favicon host={entry.host} size={16} url={entry.url} />
-      <span className="entry-main">
-        <span className="entry-title">{entry.title || entry.url}</span>
-        <span className="entry-url">{getDisplayUrl(entry.url)}</span>
+      <span className="entry-title" title={entry.title || entry.url}>
+        {entry.title || entry.url}
       </span>
-      {entry.count > 1 ? <span className="entry-count">{formatCount(entry.count)}</span> : null}
+      <span className="entry-url" title={entry.url}>
+        {entry.url}
+      </span>
+      <span className="entry-count-cell">
+        {entry.count > 1 ? (
+          <span className="entry-count" title={`${formatCount(entry.count)}回`}>
+            {formatCount(entry.count)}
+          </span>
+        ) : null}
+      </span>
     </button>
   );
 }

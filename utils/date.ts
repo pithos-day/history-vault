@@ -1,15 +1,16 @@
 const UI_LOCALE = 'ja-JP';
 
-const monthLabelFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
-  year: 'numeric',
-  month: 'long',
-});
-
 const dateHeaderFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
   weekday: 'short',
+});
+
+const dateGroupFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
 });
 
 const numericDateFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
@@ -31,6 +32,10 @@ const timeFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
 
 const weekdayFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
   weekday: 'short',
+});
+
+const weekdayLongFormatter = new Intl.DateTimeFormat(UI_LOCALE, {
+  weekday: 'long',
 });
 
 export function startOfDay(input: Date | number): Date {
@@ -109,11 +114,6 @@ export function dayKey(input: Date | number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function monthKey(input: Date | number): string {
-  const date = new Date(input);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
-}
-
 export function parseDayKey(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;
@@ -140,12 +140,13 @@ export function clampDateToMonth(input: Date | number): Date {
   return new Date(date.getFullYear(), date.getMonth(), Math.min(date.getDate(), daysInMonth(date)));
 }
 
-export function formatMonthLabel(input: Date | number): string {
-  return monthLabelFormatter.format(new Date(input));
-}
-
 export function formatDateHeader(input: Date | number): string {
   return dateHeaderFormatter.format(new Date(input));
+}
+
+export function formatDateGroupHeader(input: Date | number): string {
+  const date = new Date(input);
+  return `${dateGroupFormatter.format(date)} ${weekdayLongFormatter.format(date)}`;
 }
 
 export function formatRelativeDateHeader(input: Date | number): string {
@@ -172,6 +173,11 @@ export function formatDateRange(start: number, end: number): string {
 
 export function formatTime(input: Date | number): string {
   return timeFormatter.format(new Date(input));
+}
+
+export function formatTimeWithSeconds(input: Date | number): string {
+  const date = new Date(input);
+  return `${pad(date.getHours())}時${pad(date.getMinutes())}分${pad(date.getSeconds())}秒`;
 }
 
 export function formatHour(hour: number): string {
