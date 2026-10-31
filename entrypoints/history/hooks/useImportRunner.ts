@@ -2,8 +2,13 @@ import { useEffect, useRef } from 'react';
 import { runImportBatch } from '@/utils/history/import';
 import type { ImportState } from '@/utils/history/types';
 
+// Let the first list and calendar queries finish before import writes compete
+// with them. Later resumes do not wait again.
+const START_DELAY_MS = 1500;
+
 export function useImportRunner(state: ImportState): void {
   const runningRef = useRef(false);
+  const settledRef = useRef(false);
 
   useEffect(() => {
     if (state.phase !== 'running') return;
@@ -15,6 +20,12 @@ export function useImportRunner(state: ImportState): void {
       runningRef.current = true;
 
       try {
+        if (!settledRef.current) {
+          settledRef.current = true;
+          await delay(START_DELAY_MS);
+          if (cancelled) return;
+        }
+
         while (!cancelled && document.visibilityState === 'visible') {
           const next = await runImportBatch();
           if (next.phase !== 'running') break;
