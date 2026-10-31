@@ -5,9 +5,9 @@ const LIGHT_HEAT = {
 } as const;
 
 const DARK_HEAT = {
-  empty: '#313131',
-  from: [89, 86, 38],
-  to: [116, 101, 39],
+  empty: '#2b2b2b',
+  from: [63, 66, 40],
+  to: [156, 148, 56],
 } as const;
 
 export function getHeatColor(views: number, maxViews: number, theme: 'light' | 'dark'): string {
