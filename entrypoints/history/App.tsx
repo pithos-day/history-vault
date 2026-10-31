@@ -34,7 +34,6 @@ import { useRangeStats } from './hooks/useRangeStats';
 import { useResolvedTheme } from './hooks/useResolvedTheme';
 import { useSearch } from './hooks/useSearch';
 import { useSettings } from './hooks/useSettings';
-import { useVaultCounts } from './hooks/useVaultCounts';
 import { useVaultDateBounds } from './hooks/useVaultDateBounds';
 import { useVaultRevision } from './hooks/useVaultRevision';
 import { loadViewState, saveViewState, type ViewState } from './lib/viewState';
@@ -60,7 +59,6 @@ export default function App() {
   const { settings, loaded, updateSettings } = useSettings();
   const theme = useResolvedTheme(settings.theme);
   const importState = useImportState();
-  const counts = useVaultCounts(dataRevision);
   const [viewState, setViewState] = useState<ViewState>(() => loadViewState());
   const [focusToken, setFocusToken] = useState(0);
   const [query, setQuery] = useState(() => getInitialQuery());
@@ -434,13 +432,13 @@ export default function App() {
 
       {settingsOpen ? (
         <SettingsDialog
-          counts={counts}
           importState={importState}
           onClearVault={handleClearVault}
           onClose={() => setSettingsOpen(false)}
           onStartImport={handleStartImport}
           onToast={showToast}
           onUpdate={updateSettings}
+          revision={dataRevision}
           settings={settings}
         />
       ) : null}

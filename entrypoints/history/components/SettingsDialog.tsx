@@ -14,11 +14,12 @@ import { getStorageEstimate } from '@/utils/history/query';
 import type { ImportState } from '@/utils/history/types';
 import type { Settings, ThemeSetting } from '@/utils/settings';
 import { formatVersion } from '@/utils/version';
+import { useVaultCounts } from '../hooks/useVaultCounts';
 
 interface SettingsDialogProps {
   settings: Settings;
   importState: ImportState;
-  counts: { pages: number; visits: number };
+  revision: number;
   onUpdate: (patch: Partial<Settings>) => Promise<unknown>;
   onClose: () => void;
   onStartImport: () => void;
@@ -29,13 +30,14 @@ interface SettingsDialogProps {
 export function SettingsDialog({
   settings,
   importState,
-  counts,
+  revision,
   onUpdate,
   onClose,
   onStartImport,
   onClearVault,
   onToast,
 }: SettingsDialogProps) {
+  const counts = useVaultCounts(revision);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null);
   const [importProgress, setImportProgress] = useState<string | null>(null);

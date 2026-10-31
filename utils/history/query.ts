@@ -101,8 +101,15 @@ export async function getCalendarActivity(
 }
 
 export async function getVaultCounts(): Promise<{ pages: number; visits: number }> {
-  const [pages, visits] = await Promise.all([db.pages.count(), db.visits.count()]);
-  return { pages, visits };
+  const [pages, days] = await Promise.all([db.pages.count(), db.activity.toArray()]);
+  if (days.length === 0) {
+    return { pages, visits: await db.visits.count() };
+  }
+
+  return {
+    pages,
+    visits: days.reduce((total, day) => total + day.views, 0),
+  };
 }
 
 export async function deleteUrlFromVault(url: string, date?: Date | number): Promise<void> {
