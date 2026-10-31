@@ -59,7 +59,7 @@ describe('useDebouncedVaultRevision', () => {
     expect(result.current).toEqual(revision(2, ['2026-10-01', '2026-10-02', '2026-10-03']));
   });
 
-  it('ignores revisions older than the pending one', () => {
+  it('keeps the days from a revision with a lower sequence', () => {
     vi.useFakeTimers();
     const { result, rerender } = renderHook(
       ({ value }: { value: VaultRevision }) => useDebouncedVaultRevision(value, 400),
@@ -72,7 +72,23 @@ describe('useDebouncedVaultRevision', () => {
       vi.advanceTimersByTime(400);
     });
 
-    expect(result.current).toEqual(revision(5, ['2026-10-05']));
+    expect(result.current).toEqual(revision(5, ['2026-10-05', '2026-10-04']));
+  });
+
+  it('treats an unknown changed day as a full refresh when merging', () => {
+    vi.useFakeTimers();
+    const { result, rerender } = renderHook(
+      ({ value }: { value: VaultRevision }) => useDebouncedVaultRevision(value, 400),
+      { initialProps: { value: revision(0) } },
+    );
+
+    rerender({ value: revision(1, ['2026-10-05']) });
+    rerender({ value: revision(2) });
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(result.current).toEqual(revision(2));
   });
 
   it('keeps the reset flag when a reset is followed by another change', () => {
@@ -88,7 +104,7 @@ describe('useDebouncedVaultRevision', () => {
       vi.advanceTimersByTime(400);
     });
 
-    expect(result.current).toEqual(revision(2, ['2026-10-06'], true));
+    expect(result.current).toEqual(revision(2, [], true));
   });
 
   it('does not emit the initial empty revision', () => {

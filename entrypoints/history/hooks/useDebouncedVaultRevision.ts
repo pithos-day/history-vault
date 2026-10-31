@@ -10,11 +10,10 @@ import type { VaultRevision } from '@/utils/vault-events';
  */
 export function useDebouncedVaultRevision(revision: VaultRevision, delayMs: number): VaultRevision {
   const [debounced, setDebounced] = useState<VaultRevision>(revision);
-  const pendingRef = useRef<VaultRevision>(revision);
-  const emittedSeqRef = useRef(revision.seq);
+  const pendingRef = useRef<VaultRevision | null>(null);
 
   useEffect(() => {
-    if (revision.seq === 0) return;
+    if (isEmptyRevision(revision)) return;
     pendingRef.current = mergeRevisions(pendingRef.current, revision);
   }, [revision]);
 
@@ -22,18 +21,14 @@ export function useDebouncedVaultRevision(revision: VaultRevision, delayMs: numb
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
 
     const pending = pendingRef.current;
-    if (pending.seq < emittedSeqRef.current) return;
-    if (pending.seq === emittedSeqRef.current && pending.days.length === 0 && !pending.reset) {
-      return;
-    }
+    if (pending === null) return;
 
-    emittedSeqRef.current = Math.max(emittedSeqRef.current, pending.seq);
-    pendingRef.current = { seq: pending.seq, days: [], reset: false };
+    pendingRef.current = null;
     setDebounced(pending);
   }, []);
 
   useEffect(() => {
-    if (revision.seq === 0) return;
+    if (isEmptyRevision(revision)) return;
     const timer = setTimeout(emit, delayMs);
     return () => clearTimeout(timer);
   }, [revision, delayMs, emit]);
@@ -50,12 +45,25 @@ export function useDebouncedVaultRevision(revision: VaultRevision, delayMs: numb
   return debounced;
 }
 
-function mergeRevisions(current: VaultRevision, next: VaultRevision): VaultRevision {
-  if (next.seq < current.seq) return current;
+function isEmptyRevision(revision: VaultRevision): boolean {
+  return revision.seq === 0 && revision.days.length === 0 && !revision.reset;
+}
+
+/**
+ * A revision with an empty day list means "the changed days are unknown", so
+ * it has to win over day-specific revisions and trigger a full read.
+ */
+function mergeRevisions(current: VaultRevision | null, next: VaultRevision): VaultRevision {
+  if (current === null) {
+    return { seq: next.seq, days: [...next.days], reset: next.reset };
+  }
 
   return {
     seq: Math.max(current.seq, next.seq),
-    days: [...new Set([...current.days, ...next.days])],
+    days:
+      current.days.length === 0 || next.days.length === 0
+        ? []
+        : [...new Set([...current.days, ...next.days])],
     reset: current.reset || next.reset,
   };
 }
