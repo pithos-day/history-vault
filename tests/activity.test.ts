@@ -19,7 +19,9 @@ const { getVisits } = vi.hoisted(() => ({ getVisits: vi.fn() }));
 vi.mock('wxt/browser', () => ({
   browser: {
     history: { getVisits },
-    storage: { local: { get: vi.fn(), set: vi.fn().mockResolvedValue(undefined) } },
+    storage: {
+      local: { get: vi.fn().mockResolvedValue({}), set: vi.fn().mockResolvedValue(undefined) },
+    },
     runtime: { getURL: (path: string) => `chrome-extension://test${path}` },
   },
 }));

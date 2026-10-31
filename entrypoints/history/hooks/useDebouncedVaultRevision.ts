@@ -22,9 +22,12 @@ export function useDebouncedVaultRevision(revision: VaultRevision, delayMs: numb
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
 
     const pending = pendingRef.current;
-    if (pending.seq <= emittedSeqRef.current) return;
+    if (pending.seq < emittedSeqRef.current) return;
+    if (pending.seq === emittedSeqRef.current && pending.days.length === 0 && !pending.reset) {
+      return;
+    }
 
-    emittedSeqRef.current = pending.seq;
+    emittedSeqRef.current = Math.max(emittedSeqRef.current, pending.seq);
     pendingRef.current = { seq: pending.seq, days: [], reset: false };
     setDebounced(pending);
   }, []);
@@ -48,10 +51,10 @@ export function useDebouncedVaultRevision(revision: VaultRevision, delayMs: numb
 }
 
 function mergeRevisions(current: VaultRevision, next: VaultRevision): VaultRevision {
-  if (next.seq <= current.seq) return current;
+  if (next.seq < current.seq) return current;
 
   return {
-    seq: next.seq,
+    seq: Math.max(current.seq, next.seq),
     days: [...new Set([...current.days, ...next.days])],
     reset: current.reset || next.reset,
   };

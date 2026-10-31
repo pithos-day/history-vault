@@ -17,14 +17,15 @@ export interface VaultRevisionOptions {
 const EMPTY_REVISION: VaultRevision = { seq: 0, days: [], reset: false };
 let lastSequence = 0;
 
-function nextSequence(): number {
-  lastSequence = Math.max(Date.now(), lastSequence + 1);
-  return lastSequence;
-}
-
 export async function bumpVaultRevision(options: VaultRevisionOptions = {}): Promise<void> {
+  // Bumps come from the background worker and the history page at the same
+  // time during imports. Reading the stored value keeps the sequence ahead of
+  // writes this context has not seen yet.
+  const current = await getVaultRevision();
+  lastSequence = Math.max(Date.now(), current.seq + 1, lastSequence + 1);
+
   const revision: VaultRevision = {
-    seq: nextSequence(),
+    seq: lastSequence,
     days: [...new Set(options.days ?? [])].filter(Boolean),
     reset: options.reset ?? false,
   };

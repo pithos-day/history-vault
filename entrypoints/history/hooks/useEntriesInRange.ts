@@ -31,7 +31,7 @@ export function useEntriesInRange(
   const initialLoadRef = useRef(true);
   const requestRef = useRef(0);
   const daysRef = useRef<DayEntries[]>([]);
-  const appliedRevisionRef = useRef(0);
+  const appliedRevisionRef = useRef<VaultRevision>(revision);
   const loadingFullRef = useRef(false);
   const pendingDaysRef = useRef<Set<string> | 'all' | null>(null);
 
@@ -97,7 +97,7 @@ export function useEntriesInRange(
       requestRef.current += 1;
       loadingFullRef.current = false;
       pendingDaysRef.current = null;
-      appliedRevisionRef.current = revision.seq;
+      appliedRevisionRef.current = revision;
       commitDays([]);
       setLoading(false);
       setLoadingMore(false);
@@ -107,20 +107,20 @@ export function useEntriesInRange(
 
     const rangeChanged = initialLoadRef.current || rangeRef.current !== rangeKey;
     const reset =
-      revision.reset && revision.seq !== appliedRevisionRef.current && !loadingFullRef.current;
+      revision.reset && revision !== appliedRevisionRef.current && !loadingFullRef.current;
     // An empty range has no loaded days to patch, so a new revision (for
     // example the first visit of the month) has to start the page load again.
     const reloadEmpty =
       !rangeChanged &&
       !reset &&
       !loadingFullRef.current &&
-      revision.seq > appliedRevisionRef.current &&
+      revision !== appliedRevisionRef.current &&
       daysRef.current.length === 0 &&
       (revision.days.length === 0 || hasDayInRange(revision.days, start, end));
 
     if (!rangeChanged && !reset && !reloadEmpty) {
-      if (revision.seq === 0 || revision.seq <= appliedRevisionRef.current) return;
-      appliedRevisionRef.current = revision.seq;
+      if (revision === appliedRevisionRef.current) return;
+      appliedRevisionRef.current = revision;
 
       if (loadingFullRef.current) {
         pendingDaysRef.current = revision.reset
@@ -139,7 +139,7 @@ export function useEntriesInRange(
 
     initialLoadRef.current = false;
     rangeRef.current = rangeKey;
-    appliedRevisionRef.current = revision.seq;
+    appliedRevisionRef.current = revision;
     const request = ++requestRef.current;
     loadingFullRef.current = true;
     pendingDaysRef.current = null;

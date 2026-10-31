@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react';
 import { searchPages } from '@/utils/history/search';
 import type { SearchResult } from '@/utils/history/types';
+import type { VaultRevision } from '@/utils/vault-events';
 
 export function useSearch(
   query: string,
-  revision: number,
+  revision: VaultRevision,
 ): { results: SearchResult[]; loading: boolean } {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);

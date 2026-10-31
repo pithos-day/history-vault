@@ -53,7 +53,6 @@ interface ToastState {
 export default function App() {
   const revision = useVaultRevision();
   const dataRevision = useDebouncedVaultRevision(revision, 400);
-  const revisionSeq = dataRevision.seq;
   const { settings, loaded, updateSettings } = useSettings();
   const theme = useResolvedTheme(settings.theme);
   const importState = useImportState();
@@ -84,7 +83,7 @@ export default function App() {
     range.start,
     range.end,
     'day',
-    revisionSeq,
+    dataRevision,
     !searching && viewState.statsVisible,
   );
   const {
@@ -94,7 +93,7 @@ export default function App() {
     hasMore: listHasMore,
     loadMore: loadMoreEntries,
   } = useEntriesInRange(range.start, range.end, dataRevision, !searching);
-  const { results, loading: searchLoading } = useSearch(query, revisionSeq);
+  const { results, loading: searchLoading } = useSearch(query, dataRevision);
   const { activity: calendarActivity, bounds } = useVaultOverview(dataRevision);
   const calendarMonths = useMemo(
     () => buildCalendarMonths(bounds, selectedDate),
@@ -396,7 +395,7 @@ export default function App() {
           onStartImport={handleStartImport}
           onToast={showToast}
           onUpdate={updateSettings}
-          revision={revisionSeq}
+          revision={dataRevision}
           settings={settings}
         />
       ) : null}

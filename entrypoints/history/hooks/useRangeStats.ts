@@ -2,12 +2,13 @@
 import { useEffect, useState } from 'react';
 import { getRangeStats } from '@/utils/history/query';
 import type { RangeStats } from '@/utils/history/types';
+import type { VaultRevision } from '@/utils/vault-events';
 
 export function useRangeStats(
   start: number,
   end: number,
   granularity: 'day' | 'hour',
-  revision: number,
+  revision: VaultRevision,
   enabled = true,
 ): { stats: RangeStats | null; loading: boolean; error: string | null } {
   const [stats, setStats] = useState<RangeStats | null>(null);

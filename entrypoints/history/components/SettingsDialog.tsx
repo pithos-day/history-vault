@@ -13,13 +13,14 @@ import { formatBytes } from '@/utils/format';
 import { getStorageEstimate } from '@/utils/history/query';
 import type { ImportState } from '@/utils/history/types';
 import type { Settings, ThemeSetting } from '@/utils/settings';
+import type { VaultRevision } from '@/utils/vault-events';
 import { formatVersion } from '@/utils/version';
 import { useVaultCounts } from '../hooks/useVaultCounts';
 
 interface SettingsDialogProps {
   settings: Settings;
   importState: ImportState;
-  revision: number;
+  revision: VaultRevision;
   onUpdate: (patch: Partial<Settings>) => Promise<unknown>;
   onClose: () => void;
   onStartImport: () => void;
