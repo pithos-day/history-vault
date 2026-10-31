@@ -203,7 +203,7 @@ export async function deleteUrlFromVault(url: string, date?: Date | number): Pro
     await recomputeActivityForVisits(visits);
   }
 
-  await cleanupPage(url);
+  await refreshPageAfterVisitRemoval(url);
   await bumpVaultRevision({ days: visits.map((visit) => dayKey(visit.visitedAt)) });
 }
 
@@ -221,7 +221,7 @@ export async function deleteUrlVisitsInInclusiveWindow(
 
   await db.visits.bulkDelete(visits.map((visit) => visit.id));
   await recomputeActivityForVisits(visits);
-  await cleanupPage(url);
+  await refreshPageAfterVisitRemoval(url);
   await bumpVaultRevision({ days: visits.map((visit) => dayKey(visit.visitedAt)) });
 }
 
@@ -334,7 +334,7 @@ async function deleteSupersededVisits(
   await recomputeActivityForVisits(removed);
 
   for (const url of new Set(removed.map((visit) => visit.url))) {
-    await cleanupPage(url);
+    await refreshPageAfterVisitRemoval(url);
   }
 
   await bumpVaultRevision({ days: removed.map((visit) => dayKey(visit.visitedAt)) });
@@ -351,7 +351,7 @@ export async function deleteDayFromVault(date: Date | number): Promise<void> {
   await db.activity.delete(dayKey(range.start));
 
   for (const url of urls) {
-    await cleanupPage(url);
+    await refreshPageAfterVisitRemoval(url);
   }
 
   await bumpVaultRevision({ days: [dayKey(range.start)] });
@@ -420,7 +420,8 @@ function buildDayEntries(
   };
 }
 
-async function cleanupPage(url: string): Promise<void> {
+/** Deletes the page when no visits remain, otherwise recomputes its aggregates. */
+async function refreshPageAfterVisitRemoval(url: string): Promise<void> {
   const remaining = await db.visits.where('url').equals(url).toArray();
   if (remaining.length === 0) {
     await db.pages.delete(url);
