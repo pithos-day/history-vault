@@ -11,6 +11,8 @@ interface GroupedHistoryListProps {
   loading: boolean;
   emptyText: string;
   ariaLabel: string;
+  focusDate?: string;
+  focusToken?: number;
   onOpen: (url: string) => void;
   onContextMenu: (entry: EntryGroup, event: MouseEvent) => void;
   onDeleteDay?: (date: Date) => void;
@@ -21,12 +23,25 @@ export function GroupedHistoryList({
   loading,
   emptyText,
   ariaLabel,
+  focusDate,
+  focusToken = 0,
   onOpen,
   onContextMenu,
   onDeleteDay,
 }: GroupedHistoryListProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const rows = useMemo(() => buildListRows(days, collapsed), [days, collapsed]);
+  const focusIndex = useMemo(() => {
+    if (!focusDate || focusToken === 0) return -1;
+
+    const exact = rows.findIndex((row) => row.type === 'header' && row.date === focusDate);
+    if (exact !== -1) return exact;
+
+    const older = rows.findIndex((row) => row.type === 'header' && row.date < focusDate);
+    if (older !== -1) return older;
+
+    return rows.findIndex((row) => row.type === 'header');
+  }, [rows, focusDate, focusToken]);
 
   const toggleDay = useCallback((date: string) => {
     setCollapsed((current) => {
@@ -60,6 +75,8 @@ export function GroupedHistoryList({
             <EntryRow entry={row.entry} onContextMenu={onContextMenu} onOpen={onOpen} />
           )
         }
+        scrollRequest={focusToken}
+        scrollToIndex={focusIndex}
       />
     </section>
   );

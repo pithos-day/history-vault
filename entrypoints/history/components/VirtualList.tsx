@@ -8,6 +8,8 @@ interface VirtualListProps<T> {
   getKey?: (item: T, index: number) => string | number;
   className?: string;
   empty?: ReactNode;
+  scrollToIndex?: number;
+  scrollRequest?: number;
 }
 
 export function VirtualList<T>({
@@ -17,6 +19,8 @@ export function VirtualList<T>({
   getKey,
   className,
   empty,
+  scrollToIndex = -1,
+  scrollRequest = 0,
 }: VirtualListProps<T>) {
   const parentRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual is the supported list virtualizer here.
@@ -35,6 +39,12 @@ export function VirtualList<T>({
     observer.observe(element);
     return () => observer.disconnect();
   }, [virtualizer]);
+
+  useEffect(() => {
+    if (scrollToIndex < 0) return;
+    void scrollRequest;
+    virtualizer.scrollToIndex(scrollToIndex, { align: 'start' });
+  }, [scrollRequest, scrollToIndex, virtualizer]);
 
   if (items.length === 0) {
     return <div className={`empty-list ${className ?? ''}`}>{empty}</div>;

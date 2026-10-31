@@ -58,6 +58,7 @@ export default function App() {
   const importState = useImportState();
   const counts = useVaultCounts(revision);
   const [viewState, setViewState] = useState<ViewState>(() => loadViewState());
+  const [focusToken, setFocusToken] = useState(0);
   const [query, setQuery] = useState(() => getInitialQuery());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(() => hasWelcomeParam());
@@ -184,6 +185,7 @@ export default function App() {
 
   const handleSelectDate = useCallback((date: Date) => {
     setViewState((current) => ({ ...current, selectedDate: date.getTime() }));
+    setFocusToken((current) => current + 1);
   }, []);
 
   const handlePrevious = useCallback(() => {
@@ -350,6 +352,8 @@ export default function App() {
                 ariaLabel="履歴リスト"
                 days={listDays}
                 emptyText="この月の履歴はありません。"
+                focusDate={dayKey(selectedDate)}
+                focusToken={focusToken}
                 loading={listLoading}
                 onContextMenu={handleContextMenu}
                 onDeleteDay={handleDeleteDay}
