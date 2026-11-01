@@ -17,7 +17,7 @@ Chrome は既定で約 90 日分の履歴しか保持しません。History Vaul
 
 ## 対応ブラウザ
 
-Chromium 系（Chrome / Edge / Brave / Arc など）を対象としています。Firefox はリリース対象外です。
+Chrome 104 以降を対象としています。Chromium 系（Edge / Brave / Arc など）でも動作する想定ですが、動作保証は Chrome のみです。Firefox はリリース対象外です。
 
 ## スタック
 
@@ -131,6 +131,10 @@ Chrome が起動し、拡張機能が読み込まれた状態で開発できま�
 ## チェック
 
 Husky の `pre-commit` で `lint-staged` が実行され、ステージしたファイルに Biome と ESLint の自動修正がかかります。GitHub Actions では push / pull request 時に `pnpm check` と `pnpm build` を実行します。
+
+## 変更履歴
+
+リリースごとの変更点は [CHANGELOG.md](CHANGELOG.md) を参照してください。
 
 ## ライセンス
 
