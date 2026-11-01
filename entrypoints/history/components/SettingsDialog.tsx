@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { formatCount } from '@/utils/date';
 import { downloadVaultCsv, downloadVaultJson, importVaultFile } from '@/utils/export';
-import { formatBytes } from '@/utils/format';
+import { formatBytes, isStorageUsageHigh } from '@/utils/format';
 import { getStorageEstimate } from '@/utils/history/query';
 import type { ImportState } from '@/utils/history/types';
 import type { Settings, ThemeSetting } from '@/utils/settings';
@@ -48,6 +48,7 @@ export function SettingsDialog({
   const [importProgress, setImportProgress] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const manifest = browser.runtime.getManifest();
+  const storageWarning = storage ? isStorageUsageHigh(storage.usage, storage.quota) : false;
   useDialogFocus(dialogRef, onClose);
 
   useEffect(() => {
@@ -228,6 +229,11 @@ export function SettingsDialog({
               </span>
               <DatabaseIcon className="setting-icon" />
             </div>
+            {storageWarning ? (
+              <p className="setting-warning" role="status">
+                ストレージ使用量が上限の80%を超えています。不要な履歴を削除するか、JSONでエクスポートしてからVaultを整理してください。
+              </p>
+            ) : null}
             <div className="settings-button-row">
               <button
                 className="button button-secondary"

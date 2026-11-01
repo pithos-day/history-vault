@@ -1172,6 +1172,17 @@ button {
   font-size: 9px;
 }
 
+.setting-warning {
+  margin: 4px 0 8px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
 .setting-icon {
   color: var(--text-muted);
 }

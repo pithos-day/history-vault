@@ -11,3 +11,14 @@ export function formatPercent(value: number, total: number): string {
   if (total <= 0) return '0%';
   return `${Math.round((value / total) * 100)}%`;
 }
+
+export const STORAGE_WARNING_RATIO = 0.8;
+
+export function getStorageUsageRatio(usage: number, quota: number): number {
+  if (!Number.isFinite(usage) || !Number.isFinite(quota) || quota <= 0) return 0;
+  return Math.max(0, Math.min(1, usage / quota));
+}
+
+export function isStorageUsageHigh(usage: number, quota: number): boolean {
+  return getStorageUsageRatio(usage, quota) >= STORAGE_WARNING_RATIO;
+}
