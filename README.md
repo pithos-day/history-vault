@@ -110,7 +110,7 @@ Chrome が起動し、拡張機能が読み込まれた状態で開発できま�
 - `favicon` — 履歴ページでのファビコン表示
 - `alarms` — インポートの定期実行
 
-保存先は IndexedDB（`history-vault`）と `chrome.storage.local` です。詳細は [PRIVACY.md](PRIVACY.md) を参照してください。
+保存先は IndexedDB（`history-vault`）と `chrome.storage.local` です。
 
 ## 注意事項
 
