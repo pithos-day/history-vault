@@ -5,6 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'History Vault',
     description: 'A private vault for your browsing history.',
+    minimum_chrome_version: '104',
     permissions: ['history', 'storage', 'unlimitedStorage', 'favicon', 'alarms', 'webNavigation'],
   },
 });
