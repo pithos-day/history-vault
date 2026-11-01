@@ -2,7 +2,7 @@ import type { Browser } from 'wxt/browser';
 import { browser } from 'wxt/browser';
 import { delay } from '../delay';
 import { ingestHistoryItem } from './collect';
-import { deleteUrlVisitsInInclusiveWindow } from './query';
+import { deleteUrlVisitsInInclusiveWindow, removeInferredRedirectVisits } from './query';
 import {
   addRedirectMarker,
   getCachedRedirectMarkers,
@@ -75,9 +75,11 @@ export async function handleRedirectSource(source: RedirectSource): Promise<void
   await addRedirectMarker({ url: source.url, from: source.from, to: source.to });
   await deleteUrlVisitsInInclusiveWindow(source.url, source.from, source.to);
 
-  // The intermediate page's onVisited handler can still be finishing when the
-  // redirect target commits. Retry once so that late write is cleaned up too.
+  // The intermediate pages' onVisited handlers can still be finishing when the
+  // redirect target commits. Rebuild the chain from visit metadata once every
+  // hop has landed so all of them, not just the first, are removed.
   await delay(1500);
+  await removeInferredRedirectVisits(source.from, source.to);
   await deleteUrlVisitsInInclusiveWindow(source.url, source.from, source.to);
 }
 

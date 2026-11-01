@@ -12,6 +12,11 @@ import {
   removeInferredRedirectVisits,
   removeSupersededSameDocumentVisits,
 } from '../utils/history/query';
+import {
+  getCachedRedirectMarkers,
+  isRedirectedVisit,
+  resetRedirectMarkersCache,
+} from '../utils/history/redirects';
 import { pageRecord, visitRecord } from './factories';
 
 const history = {
@@ -24,6 +29,7 @@ Object.assign(fakeBrowser, { history });
 describe('vault maintenance', () => {
   beforeEach(async () => {
     await Promise.all([db.pages.clear(), db.visits.clear(), db.activity.clear(), db.meta.clear()]);
+    resetRedirectMarkersCache();
     history.search.mockReset();
     history.getVisits.mockReset();
     history.getVisits.mockResolvedValue([]);
@@ -188,6 +194,31 @@ describe('vault maintenance', () => {
     expect(await db.pages.get(firstUrl)).toBeUndefined();
     expect(await db.pages.get(secondUrl)).toBeUndefined();
     expect(await db.pages.get(finalUrl)).toBeDefined();
+  });
+
+  it('marks inferred redirect hops so late live writes cannot restore them', async () => {
+    const at = Date.now() - 60_000;
+    const firstUrl = 'http://example.com/';
+    const secondUrl = 'https://example.com/';
+    const finalUrl = 'https://www.example.com/home';
+
+    await db.pages.bulkPut([
+      pageRecord(firstUrl, at),
+      pageRecord(secondUrl, at),
+      pageRecord(finalUrl, at),
+    ]);
+    await db.visits.bulkPut([
+      { ...visitRecord('111', firstUrl, at), referringVisitId: 'previous' },
+      { ...visitRecord('112', secondUrl, at), referringVisitId: '111' },
+      { ...visitRecord('113', finalUrl, at), referringVisitId: '112' },
+    ]);
+
+    await removeInferredRedirectVisits(at, at + 1);
+
+    const markers = getCachedRedirectMarkers();
+    expect(isRedirectedVisit(markers, firstUrl, at)).toBe(true);
+    expect(isRedirectedVisit(markers, secondUrl, at)).toBe(true);
+    expect(isRedirectedVisit(markers, finalUrl, at)).toBe(false);
   });
 
   it('removes redirect hops and same-document variants in one pass', async () => {

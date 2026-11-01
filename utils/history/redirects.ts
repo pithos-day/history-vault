@@ -121,12 +121,20 @@ export function getCachedRedirectMarkers(): RedirectMarker[] {
 }
 
 export async function addRedirectMarker(marker: RedirectMarker): Promise<void> {
-  const markers = await loadRedirectMarkers();
-  markerCache = pruneRedirectMarkers([...markers, marker]);
+  await addRedirectMarkers([marker]);
+}
 
+export async function addRedirectMarkers(markers: readonly RedirectMarker[]): Promise<void> {
+  if (markers.length === 0) return;
+
+  // Serialize the read-modify-write so concurrent redirect chains cannot
+  // overwrite each other's markers.
   writeQueue = writeQueue
-    .then(() => db.meta.put({ key: REDIRECT_MARKERS_KEY, value: markerCache }))
-    .then(() => undefined)
+    .then(async () => {
+      const current = await loadRedirectMarkers();
+      markerCache = pruneRedirectMarkers([...current, ...markers]);
+      await db.meta.put({ key: REDIRECT_MARKERS_KEY, value: markerCache });
+    })
     .catch(() => undefined);
   await writeQueue;
 }

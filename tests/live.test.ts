@@ -13,7 +13,7 @@ import {
   isRedirectedVisit,
   resetRedirectMarkersCache,
 } from '../utils/history/redirects';
-import { browserVisit, visitRecord } from './factories';
+import { browserVisit, pageRecord, visitRecord } from './factories';
 
 vi.mock('../utils/delay', () => ({
   delay: vi.fn().mockResolvedValue(undefined),
@@ -62,6 +62,69 @@ describe('live visit handling', () => {
 
     expect(await db.visits.count()).toBe(0);
     expect(isRedirectedVisit(getCachedRedirectMarkers(), URL, NOW)).toBe(true);
+  });
+
+  it('drops every hop of a multi-hop redirect chain', async () => {
+    const first = 'https://example.test/redirect/first';
+    const second = 'https://example.test/redirect/second';
+    const third = 'https://example.test/redirect/third';
+    const final = 'https://example.test/redirect/final';
+
+    await db.pages.bulkPut([
+      pageRecord(first, NOW),
+      pageRecord(second, NOW),
+      pageRecord(third, NOW),
+      pageRecord(final, NOW, { title: 'Final' }),
+    ]);
+    await db.visits.bulkPut([
+      visitRecord('101', first, NOW),
+      visitRecord('102', second, NOW, { referringVisitId: '101' }),
+      visitRecord('103', third, NOW, { referringVisitId: '102' }),
+      visitRecord('104', final, NOW, { referringVisitId: '103' }),
+    ]);
+
+    await handleRedirectSource({ url: first, from: NOW - 1_000, to: NOW + 2_000 });
+
+    expect(await db.visits.count()).toBe(1);
+    expect(await db.visits.get('104')).toBeDefined();
+    expect(await db.pages.get(first)).toBeUndefined();
+    expect(await db.pages.get(second)).toBeUndefined();
+    expect(await db.pages.get(third)).toBeUndefined();
+    expect(await db.pages.get(final)).toBeDefined();
+    expect(isRedirectedVisit(getCachedRedirectMarkers(), second, NOW)).toBe(true);
+    expect(isRedirectedVisit(getCachedRedirectMarkers(), third, NOW)).toBe(true);
+  });
+
+  it('does not restore a redirect hop removed by chain inference', async () => {
+    const first = 'https://example.test/late/first';
+    const second = 'https://example.test/late/second';
+    const final = 'https://example.test/late/final';
+
+    await db.pages.bulkPut([
+      pageRecord(first, NOW),
+      pageRecord(second, NOW),
+      pageRecord(final, NOW, { title: 'Final' }),
+    ]);
+    await db.visits.bulkPut([
+      visitRecord('201', first, NOW),
+      visitRecord('202', second, NOW, { referringVisitId: '201' }),
+      visitRecord('203', final, NOW, { referringVisitId: '202' }),
+    ]);
+
+    await handleRedirectSource({ url: first, from: NOW - 1_000, to: NOW + 2_000 });
+    expect(await db.visits.get('202')).toBeUndefined();
+
+    historyGetVisits.mockResolvedValue([browserVisit('202', NOW, { referringVisitId: '201' })]);
+    await storeVisitedItem({
+      id: second,
+      url: second,
+      title: '',
+      lastVisitTime: NOW,
+      visitCount: 1,
+    });
+
+    expect(await db.visits.get('202')).toBeUndefined();
+    expect(await db.pages.get(second)).toBeUndefined();
   });
 
   it('suppresses the previous URL after a same-document navigation', async () => {

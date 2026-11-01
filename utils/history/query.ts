@@ -4,7 +4,11 @@ import { bumpVaultRevision } from '../vault-events';
 import { recomputeActivityForVisits } from './activity';
 import { aggregateVisits } from './aggregate';
 import { getVaultEpoch, VAULT_EPOCH_KEY } from './epoch';
-import { findSupersededRedirectVisitIds, refreshRedirectMarkers } from './redirects';
+import {
+  addRedirectMarkers,
+  findSupersededRedirectVisitIds,
+  refreshRedirectMarkers,
+} from './redirects';
 import { findSupersededVisitIds } from './same-document';
 import type {
   CalendarDayActivity,
@@ -15,6 +19,7 @@ import type {
   RangeStats,
   VisitRecord,
 } from './types';
+import { REDIRECT_WINDOW, windowAround } from './visit-windows';
 
 export const ENTRY_PAGE_DAYS = 7;
 
@@ -238,16 +243,22 @@ export async function removeRedirectedVisits(start: number, end: number): Promis
 }
 
 /**
- * Removes redirect hops that were imported before a live navigation marker
- * existed. Chromium stores every hop with the same timestamp and links each
- * hop to the previous visit, so the final hop can be kept without relying on
- * webNavigation events.
+ * Removes every hop of a redirect chain except the final one. Chromium stores
+ * all hops with the same timestamp and links each hop to the previous visit,
+ * so the chain can be rebuilt without relying on webNavigation events.
+ * Removed hops are marked so late onVisited handlers cannot restore them.
  */
 export async function removeInferredRedirectVisits(start: number, end: number): Promise<number> {
   const visits = await getVisitsInHalfOpenRange(start, end);
   if (visits.length < 2) return 0;
 
-  return deleteSupersededVisits(visits, findSupersededRedirectVisitIds(visits));
+  const ids = findSupersededRedirectVisitIds(visits);
+  if (ids.length === 0) return 0;
+
+  // The redirect target can commit before every hop's onVisited handler has
+  // finished. Mark the removed hops so those late writes cannot restore them.
+  await markRedirectVisits(visits, ids);
+  return deleteSupersededVisits(visits, ids);
 }
 
 /**
@@ -285,6 +296,21 @@ export async function cleanupHistoryRange(start: number, end: number): Promise<v
   if (ids.size === 0) return;
 
   await deleteSupersededVisits(visits, [...ids]);
+}
+
+async function markRedirectVisits(
+  visits: readonly VisitRecord[],
+  ids: readonly string[],
+): Promise<void> {
+  const idSet = new Set(ids);
+  const markers = visits
+    .filter((visit) => idSet.has(visit.id))
+    .map((visit) => ({
+      url: visit.url,
+      ...windowAround(visit.visitedAt, REDIRECT_WINDOW),
+    }));
+
+  await addRedirectMarkers(markers);
 }
 
 async function loadPageTitles(visits: readonly VisitRecord[]): Promise<Map<string, string>> {
