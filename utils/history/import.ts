@@ -21,7 +21,7 @@ const IMPORT_BATCH_MS = 15_000;
 // Full-history scans stop after this many consecutive days with no pages.
 // Chrome's 90-day retention makes longer gaps unlikely to contain more data.
 const EMPTY_DAY_STREAK_LIMIT = 60;
-const IMPORT_PHASES = ['idle', 'running', 'done', 'error'] as const;
+const IMPORT_PHASES = ['idle', 'running', 'done', 'error', 'cancelled'] as const;
 
 interface ImportLock {
   owner: string;
@@ -74,7 +74,7 @@ export async function startImport(
   const reset = options.reset ?? false;
 
   if (current.phase === 'running' && !reset) return current;
-  if (current.phase === 'done' && !reset) return current;
+  if ((current.phase === 'done' || current.phase === 'cancelled') && !reset) return current;
 
   const settings = await getSettings();
   const windowDays = options.windowDays ?? settings.importWindowDays;
@@ -107,7 +107,9 @@ export async function startImport(
 
 export async function ensureImportStarted(): Promise<ImportState> {
   const state = await getImportState();
-  if (state.phase === 'done' || state.phase === 'running') return state;
+  if (state.phase === 'done' || state.phase === 'running' || state.phase === 'cancelled') {
+    return state;
+  }
   return startImport();
 }
 
@@ -196,10 +198,12 @@ export async function runImportBatch(batchSize = 80): Promise<ImportState> {
   }
 }
 
-export async function cancelImport(): Promise<void> {
+export async function cancelImport(): Promise<ImportState> {
   const state = await getImportState();
-  await saveImportState({ ...state, phase: 'idle', updatedAt: Date.now() });
+  const next: ImportState = { ...state, phase: 'cancelled', updatedAt: Date.now() };
+  await saveImportState(next);
   await forceReleaseImportLock();
+  return next;
 }
 
 /**

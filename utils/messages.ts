@@ -4,7 +4,8 @@ export type VaultRequest =
   | { type: 'delete-url'; url: string; date?: string }
   | { type: 'delete-day'; date: string }
   | { type: 'clear-vault' }
-  | { type: 'start-import'; reset?: boolean };
+  | { type: 'start-import'; reset?: boolean }
+  | { type: 'cancel-import' };
 
 export type VaultResponse = { ok: true } | { ok: false; error: string };
 
@@ -28,6 +29,7 @@ export function isVaultRequest(value: unknown): value is VaultRequest {
     case 'clear-vault':
       return true;
     case 'start-import':
+    case 'cancel-import':
       return true;
     default:
       return false;

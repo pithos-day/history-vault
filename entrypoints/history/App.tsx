@@ -291,6 +291,10 @@ export default function App() {
     void runVaultAction({ type: 'start-import', reset: true }, '履歴のインポートを開始しました。');
   }, [runVaultAction]);
 
+  const handleCancelImport = useCallback(() => {
+    void runVaultAction({ type: 'cancel-import' }, '履歴のインポートを中止しました。');
+  }, [runVaultAction]);
+
   const handleCloseWelcome = useCallback(() => {
     setWelcomeOpen(false);
     void updateSettings({ onboardingDone: true });
@@ -326,6 +330,7 @@ export default function App() {
 
       {!dismissedImport ? (
         <ImportBanner
+          onCancel={handleCancelImport}
           onDismiss={() => setDismissedImport(true)}
           onStart={handleStartImport}
           state={importState}
@@ -411,6 +416,7 @@ export default function App() {
       {settingsOpen ? (
         <SettingsDialog
           importState={importState}
+          onCancelImport={handleCancelImport}
           onClearVault={handleClearVault}
           onClose={() => setSettingsOpen(false)}
           onStartImport={handleStartImport}

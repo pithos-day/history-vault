@@ -25,6 +25,7 @@ interface SettingsDialogProps {
   onUpdate: (patch: Partial<Settings>) => Promise<unknown>;
   onClose: () => void;
   onStartImport: () => void;
+  onCancelImport: () => void;
   onClearVault: () => void;
   onToast: (message: string) => void;
 }
@@ -36,6 +37,7 @@ export function SettingsDialog({
   onUpdate,
   onClose,
   onStartImport,
+  onCancelImport,
   onClearVault,
   onToast,
 }: SettingsDialogProps) {
@@ -191,14 +193,25 @@ export function SettingsDialog({
                     : ''}
                 </small>
               </span>
-              <button
-                className="button button-secondary"
-                disabled={importState.phase === 'running'}
-                onClick={onStartImport}
-                type="button"
-              >
-                再インポート
-              </button>
+              <div className="setting-actions">
+                {importState.phase === 'running' ? (
+                  <button
+                    className="button button-secondary"
+                    onClick={onCancelImport}
+                    type="button"
+                  >
+                    中止
+                  </button>
+                ) : null}
+                <button
+                  className="button button-secondary"
+                  disabled={importState.phase === 'running'}
+                  onClick={onStartImport}
+                  type="button"
+                >
+                  再インポート
+                </button>
+              </div>
             </div>
           </section>
 

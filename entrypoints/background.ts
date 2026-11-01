@@ -207,6 +207,11 @@ async function handleRequest(request: VaultRequest): Promise<{ ok: true }> {
       await syncBadge(state);
       return { ok: true };
     }
+    case 'cancel-import': {
+      const state = await cancelImport();
+      await syncBadge(state);
+      return { ok: true };
+    }
   }
 
   throw new Error('不明なリクエストです。');

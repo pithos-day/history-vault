@@ -95,7 +95,7 @@ export interface RedirectMarker {
   to: number;
 }
 
-type ImportPhase = 'idle' | 'running' | 'done' | 'error';
+type ImportPhase = 'idle' | 'running' | 'done' | 'error' | 'cancelled';
 
 export interface ImportState {
   phase: ImportPhase;

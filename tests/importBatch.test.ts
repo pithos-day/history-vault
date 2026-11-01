@@ -4,6 +4,7 @@ import { db } from '../utils/db';
 import {
   cancelImport,
   defaultImportState,
+  ensureImportStarted,
   getImportState,
   IMPORT_STATE_KEY,
   runImportBatch,
@@ -78,13 +79,20 @@ describe('import batch', () => {
     await cancelImport();
 
     const state = await getImportState();
-    expect(state.phase).toBe('idle');
+    expect(state.phase).toBe('cancelled');
     expect((await fakeBrowser.storage.local.get('importLock')).importLock).toBeUndefined();
     expect((await fakeBrowser.storage.local.get(IMPORT_STATE_KEY))[IMPORT_STATE_KEY]).toMatchObject(
       {
-        phase: 'idle',
+        phase: 'cancelled',
       },
     );
+  });
+
+  it('does not restart a cancelled import on startup', async () => {
+    await startImport({ windowDays: 1 });
+    await cancelImport();
+
+    expect((await ensureImportStarted()).phase).toBe('cancelled');
   });
 
   it('ignores a stored state whose phase is unknown', async () => {

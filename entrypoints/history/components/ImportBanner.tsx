@@ -4,10 +4,11 @@ import type { ImportState } from '@/utils/history/types';
 interface ImportBannerProps {
   state: ImportState;
   onStart: () => void;
+  onCancel: () => void;
   onDismiss: () => void;
 }
 
-export function ImportBanner({ state, onStart, onDismiss }: ImportBannerProps) {
+export function ImportBanner({ state, onStart, onCancel, onDismiss }: ImportBannerProps) {
   if (state.phase !== 'running' && state.phase !== 'error') return null;
 
   const progress =
@@ -43,6 +44,11 @@ export function ImportBanner({ state, onStart, onDismiss }: ImportBannerProps) {
         {state.phase === 'error' ? (
           <button className="text-button" onClick={onStart} type="button">
             再試行
+          </button>
+        ) : null}
+        {state.phase === 'running' ? (
+          <button className="text-button" onClick={onCancel} type="button">
+            中止
           </button>
         ) : null}
         <button className="text-button" onClick={onDismiss} type="button">
