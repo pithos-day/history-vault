@@ -11,7 +11,7 @@ Chrome は既定で約 90 日分の履歴しか保持しません。History Vaul
 - **検索** — タイトル・URL・ホスト名の全文検索、`site:` / `after:` / `before:` フィルタ
 - **既存履歴のインポート** — Chrome に残っている履歴を新しい日付からバックグラウンドで取り込み
 - **削除の扱いを選択** — 既定では Chrome 側の履歴削除に追従せず、Vault に残す。設定で追従も可能
-- **エクスポート / インポート** — Vault 全体を JSON または CSV で保存・復元
+- **エクスポート / インポート** — Vault 全体を JSON で保存・復元。CSV はエクスポートのみ
 - **ライト / ダークテーマ** — システム設定への自動追従つき
 - **Ctrl+H の置き換え** — `chrome_url_overrides.history` により、Chrome の履歴ページを置き換え
 
@@ -30,6 +30,7 @@ Chromium 系（Chrome / Edge / Brave / Arc など）を対象としています�
 - **Vitest + happy-dom + fake-indexeddb** — ユニットテスト
 - **Knip** — 未使用ファイル・依存関係の検出
 - **Husky + lint-staged** — コミット前の自動チェック
+- **GitHub Actions** — push / pull request 時の lint・型チェック・テスト・ビルド
 
 ## 必要環境
 
@@ -76,6 +77,7 @@ Chrome が起動し、拡張機能が読み込まれた状態で開発できま�
 
 ```text
 .
+├── .github/workflows/ci.yml # lint / typecheck / test / build
 ├── entrypoints/
 │   ├── background.ts        # Service Worker（収集・インポート・削除同期）
 │   ├── history/             # Ctrl+H で開く履歴ページ
@@ -109,6 +111,7 @@ Chrome が起動し、拡張機能が読み込まれた状態で開発できま�
 - `unlimitedStorage` — 長期間の履歴を IndexedDB に保存
 - `favicon` — 履歴ページでのファビコン表示
 - `alarms` — インポートの定期実行
+- `webNavigation` — リダイレクトと同一ドキュメント内遷移の検出
 
 保存先は IndexedDB（`history-vault`）と `chrome.storage.local` です。
 
@@ -125,9 +128,9 @@ Chrome が起動し、拡張機能が読み込まれた状態で開発できま�
 - WXT の自動インポート（`defineBackground` など）は ESLint の globals に `.wxt/eslint-auto-imports.mjs` 経由で反映されます。
 - アイコンは `assets/icon.svg` を原本に、`public/icon/*.png` を書き出してコミットしています。
 
-## コミット前チェック
+## チェック
 
-Husky の `pre-commit` で `lint-staged` が実行され、ステージしたファイルに Biome と ESLint の自動修正がかかります。
+Husky の `pre-commit` で `lint-staged` が実行され、ステージしたファイルに Biome と ESLint の自動修正がかかります。GitHub Actions では push / pull request 時に `pnpm check` と `pnpm build` を実行します。
 
 ## ライセンス
 
