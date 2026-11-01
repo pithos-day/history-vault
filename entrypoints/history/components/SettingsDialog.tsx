@@ -15,6 +15,7 @@ import type { ImportState } from '@/utils/history/types';
 import type { Settings, ThemeSetting } from '@/utils/settings';
 import type { VaultRevision } from '@/utils/vault-events';
 import { formatVersion } from '@/utils/version';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 import { useVaultCounts } from '../hooks/useVaultCounts';
 
 interface SettingsDialogProps {
@@ -39,11 +40,13 @@ export function SettingsDialog({
   onToast,
 }: SettingsDialogProps) {
   const counts = useVaultCounts(revision);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null);
   const [importProgress, setImportProgress] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const manifest = browser.runtime.getManifest();
+  useDialogFocus(dialogRef, onClose);
 
   useEffect(() => {
     let active = true;
@@ -93,7 +96,9 @@ export function SettingsDialog({
         aria-labelledby="settings-title"
         aria-modal="true"
         className="modal settings-dialog"
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
         <header className="modal-header">
           <div>

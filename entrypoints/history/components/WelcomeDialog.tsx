@@ -1,17 +1,24 @@
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 interface WelcomeDialogProps {
   onClose: () => void;
 }
 
 export function WelcomeDialog({ onClose }: WelcomeDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onClose);
+
   return createPortal(
     <div className="modal-backdrop">
       <div
         aria-labelledby="welcome-title"
         aria-modal="true"
         className="modal welcome-dialog"
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
         <p className="eyebrow">History Vault</p>
         <h2 id="welcome-title">履歴を、ずっと手元に。</h2>

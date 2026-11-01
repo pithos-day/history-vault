@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 interface ConfirmDialogProps {
   title: string;
@@ -18,13 +19,8 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancel]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, onCancel);
 
   return createPortal(
     <div className="modal-backdrop">
@@ -33,7 +29,9 @@ export function ConfirmDialog({
         aria-labelledby="confirm-title"
         aria-modal="true"
         className="modal confirm-dialog"
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
         <h2 id="confirm-title">{title}</h2>
         <p id="confirm-message">{message}</p>
