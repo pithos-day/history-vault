@@ -15,7 +15,7 @@ export interface SearchPage {
   truncated: boolean;
 }
 
-export const SEARCH_RESULT_LIMIT = 500;
+const SEARCH_RESULT_LIMIT = 500;
 
 export function normalizeSearchText(value: string): string {
   return value.normalize('NFKC').toLocaleLowerCase('ja-JP');
