@@ -13,9 +13,10 @@ import {
 } from '@/utils/history/import';
 import {
   forgetTabNavigationState,
-  getNavigationState,
   handleRedirectSource,
   handleSameDocumentNavigation,
+  recordNavigationCommit,
+  recordNavigationStart,
   storeVisitedItem,
 } from '@/utils/history/live';
 import {
@@ -24,11 +25,7 @@ import {
   deleteDayFromVault,
   deleteUrlFromVault,
 } from '@/utils/history/query';
-import {
-  findRedirectSource,
-  loadRedirectMarkers,
-  resetRedirectMarkersCache,
-} from '@/utils/history/redirects';
+import { loadRedirectMarkers, resetRedirectMarkersCache } from '@/utils/history/redirects';
 import { RECENT_CLEANUP_MS } from '@/utils/history/same-document';
 import type { ImportState } from '@/utils/history/types';
 import type { VaultRequest } from '@/utils/messages';
@@ -57,41 +54,39 @@ export default defineBackground(() => {
 
   browser.webNavigation.onBeforeNavigate.addListener((details) => {
     if (details.frameId !== 0) return;
-    const state = getNavigationState(details.tabId, details.frameId);
-    state.before = { url: details.url, time: details.timeStamp };
+    void recordNavigationStart(details).catch((error) => {
+      console.error('History Vault: failed to record navigation start', error);
+    });
   });
 
   browser.webNavigation.onCommitted.addListener((details) => {
     if (details.frameId !== 0) return;
-    const state = getNavigationState(details.tabId, details.frameId);
-    const source = findRedirectSource({
-      targetUrl: details.url,
-      targetTime: details.timeStamp,
-      qualifiers: details.transitionQualifiers ?? [],
-      lastBeforeNavigate: state.before,
-      lastCommitted: state.committed,
-    });
-
-    state.committed = { url: details.url, time: details.timeStamp };
-    state.chainHead = state.committed;
-
-    if (source) {
-      void handleRedirectSource(source).catch((error) => {
+    void recordNavigationCommit(details)
+      .then((source) => {
+        if (!source) return;
+        return handleRedirectSource(source);
+      })
+      .catch((error) => {
         console.error('History Vault: failed to drop redirect page', error);
       });
-    }
   });
 
   browser.webNavigation.onHistoryStateUpdated.addListener((details) => {
-    handleSameDocumentNavigation(details);
+    void handleSameDocumentNavigation(details).catch((error) => {
+      console.error('History Vault: failed to drop same-document page', error);
+    });
   });
 
   browser.webNavigation.onReferenceFragmentUpdated.addListener((details) => {
-    handleSameDocumentNavigation(details);
+    void handleSameDocumentNavigation(details).catch((error) => {
+      console.error('History Vault: failed to drop same-document page', error);
+    });
   });
 
   browser.tabs.onRemoved.addListener((tabId) => {
-    forgetTabNavigationState(tabId);
+    void forgetTabNavigationState(tabId).catch((error) => {
+      console.error('History Vault: failed to forget tab navigation state', error);
+    });
   });
 
   browser.history.onVisitRemoved.addListener((removed) => {

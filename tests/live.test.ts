@@ -5,6 +5,10 @@ import {
   getNavigationState,
   handleRedirectSource,
   handleSameDocumentNavigation,
+  LIVE_STATE_KEY,
+  loadLiveState,
+  recordNavigationCommit,
+  recordNavigationStart,
   resetLiveState,
   storeVisitedItem,
 } from '../utils/history/live';
@@ -40,7 +44,8 @@ describe('live visit handling', () => {
     historySearch.mockReset();
     historyGetVisits.mockReset();
     historyGetVisits.mockResolvedValue([browserVisit('v1', NOW)]);
-    resetLiveState();
+    await resetLiveState();
+    await fakeBrowser.storage.session.clear();
     resetRedirectMarkersCache();
   });
 
@@ -131,7 +136,7 @@ describe('live visit handling', () => {
     await db.visits.put(visitRecord('old', URL, NOW));
     getNavigationState(1, 0).committed = { url: URL, time: NOW };
 
-    handleSameDocumentNavigation({
+    await handleSameDocumentNavigation({
       tabId: 1,
       frameId: 0,
       url: 'https://example.test/next',
@@ -140,6 +145,65 @@ describe('live visit handling', () => {
     await vi.waitFor(async () => expect(await db.visits.count()).toBe(0));
 
     await storeVisitedItem(item('Example'));
+    expect(await db.visits.count()).toBe(0);
+  });
+
+  it('persists navigation and suppression state to session storage', async () => {
+    await recordNavigationCommit({
+      tabId: 1,
+      frameId: 0,
+      url: URL,
+      timeStamp: NOW,
+    });
+
+    await handleSameDocumentNavigation({
+      tabId: 1,
+      frameId: 0,
+      url: 'https://example.test/next',
+      timeStamp: NOW + 1_000,
+    });
+
+    const stored = (await fakeBrowser.storage.session.get(LIVE_STATE_KEY))[LIVE_STATE_KEY] as {
+      navigationStates: Record<string, unknown>;
+      suppressedVisits: Array<{ url: string }>;
+    };
+
+    expect(stored.navigationStates['1:0']).toMatchObject({
+      committed: { url: URL, time: NOW },
+      chainHead: { url: 'https://example.test/next', time: NOW + 1_000 },
+    });
+    expect(stored.suppressedVisits).toEqual([expect.objectContaining({ url: URL })]);
+  });
+
+  it('restores navigation state after a service-worker restart', async () => {
+    await recordNavigationStart({ tabId: 3, frameId: 0, url: URL, timeStamp: NOW });
+    await recordNavigationCommit({
+      tabId: 3,
+      frameId: 0,
+      url: 'https://example.test/next',
+      timeStamp: NOW + 1_000,
+    });
+
+    await resetLiveState();
+    await loadLiveState();
+
+    expect(getNavigationState(3, 0)).toMatchObject({
+      before: { url: URL, time: NOW },
+      committed: { url: 'https://example.test/next', time: NOW + 1_000 },
+    });
+  });
+
+  it('restores suppressed visits after a service-worker restart', async () => {
+    await fakeBrowser.storage.session.set({
+      [LIVE_STATE_KEY]: {
+        navigationStates: {},
+        suppressedVisits: [{ url: URL, from: NOW - 60_000, to: NOW + 60_000 }],
+      },
+    });
+    await loadLiveState();
+
+    await storeVisitedItem(item('Example'));
+
     expect(await db.visits.count()).toBe(0);
   });
 });
