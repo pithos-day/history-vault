@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../utils/db';
-import { getHighlightParts, parseSearchQuery, searchPages } from '../utils/history/search';
+import { parseSearchQuery, searchPages } from '../utils/history/search';
 import { pageRecord } from './factories';
 
 describe('search', () => {
@@ -63,12 +63,5 @@ describe('search', () => {
     expect(page.results).toHaveLength(2);
     expect(page.total).toBe(3);
     expect(page.truncated).toBe(true);
-  });
-
-  it('returns highlight parts without dropping unmatched text', () => {
-    const parts = getHighlightParts('React and react-router', ['react']);
-
-    expect(parts.map((part) => part.text).join('')).toBe('React and react-router');
-    expect(parts.filter((part) => part.match)).toHaveLength(2);
   });
 });

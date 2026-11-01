@@ -86,33 +86,6 @@ export async function searchPages(query: string, limit = SEARCH_RESULT_LIMIT): P
   };
 }
 
-export function getHighlightParts(
-  text: string,
-  terms: string[],
-): Array<{ text: string; match: boolean }> {
-  const normalizedTerms = terms.filter(Boolean);
-  if (normalizedTerms.length === 0) return [{ text, match: false }];
-
-  const pattern = normalizedTerms
-    .slice()
-    .sort((left, right) => right.length - left.length)
-    .map(escapeRegExp)
-    .join('|');
-  const regex = new RegExp(`(${pattern})`, 'gi');
-  const parts: Array<{ text: string; match: boolean }> = [];
-  let cursor = 0;
-
-  for (const match of text.matchAll(regex)) {
-    if (match.index === undefined) continue;
-    if (match.index > cursor) parts.push({ text: text.slice(cursor, match.index), match: false });
-    parts.push({ text: match[0], match: true });
-    cursor = match.index + match[0].length;
-  }
-
-  if (cursor < text.length) parts.push({ text: text.slice(cursor), match: false });
-  return parts;
-}
-
 function matchesPage(page: PageRecord, parsed: ParsedSearch): boolean {
   if (parsed.site) {
     const host = normalizeSearchText(page.host);
@@ -140,8 +113,4 @@ function tokenize(query: string): string[] {
   }
 
   return tokens;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
