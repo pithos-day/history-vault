@@ -37,3 +37,5 @@ jobs:
           name: history-vault-chrome
           path: .output/*.zip
           if-no-files-found: error
+          # .output starts with a dot, and v4 skips hidden paths by default.
+          include-hidden-files: true
