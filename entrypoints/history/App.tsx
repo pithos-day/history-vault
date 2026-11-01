@@ -98,7 +98,12 @@ export default function App() {
     hasMore: listHasMore,
     loadMore: loadMoreEntries,
   } = useEntriesInRange(range.start, range.end, dataRevision, !searching);
-  const { results, loading: searchLoading } = useSearch(query, dataRevision);
+  const {
+    results,
+    loading: searchLoading,
+    total: searchTotal,
+    truncated: searchTruncated,
+  } = useSearch(query, dataRevision);
   const { activity: calendarActivity, bounds } = useVaultOverview(dataRevision);
 
   const initialSelectedDateRef = useRef(viewState.selectedDate);
@@ -348,6 +353,8 @@ export default function App() {
                 onOpen={handleOpen}
                 query={query.trim()}
                 results={results}
+                total={searchTotal}
+                truncated={searchTruncated}
               />
             ) : (
               <GroupedHistoryList

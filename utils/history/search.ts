@@ -9,6 +9,14 @@ interface ParsedSearch {
   before?: number;
 }
 
+export interface SearchPage {
+  results: SearchResult[];
+  total: number;
+  truncated: boolean;
+}
+
+export const SEARCH_RESULT_LIMIT = 500;
+
 export function normalizeSearchText(value: string): string {
   return value.normalize('NFKC').toLocaleLowerCase('ja-JP');
 }
@@ -47,7 +55,7 @@ export function parseSearchQuery(query: string): ParsedSearch {
   return { terms, site, after, before };
 }
 
-export async function searchPages(query: string, limit = 500): Promise<SearchResult[]> {
+export async function searchPages(query: string, limit = SEARCH_RESULT_LIMIT): Promise<SearchPage> {
   const parsed = parseSearchQuery(query);
   if (
     parsed.terms.length === 0 &&
@@ -55,7 +63,7 @@ export async function searchPages(query: string, limit = 500): Promise<SearchRes
     parsed.after === undefined &&
     parsed.before === undefined
   ) {
-    return [];
+    return { results: [], total: 0, truncated: false };
   }
 
   const pages = await db.pages.toArray();
@@ -71,7 +79,11 @@ export async function searchPages(query: string, limit = 500): Promise<SearchRes
   }
 
   results.sort((left, right) => right.latestVisitTime - left.latestVisitTime);
-  return results.slice(0, limit);
+  return {
+    results: results.slice(0, limit),
+    total: results.length,
+    truncated: results.length > limit,
+  };
 }
 
 export function getHighlightParts(

@@ -6,6 +6,8 @@ import { GroupedHistoryList } from './GroupedHistoryList';
 interface SearchResultsProps {
   query: string;
   results: SearchResult[];
+  total: number;
+  truncated: boolean;
   loading: boolean;
   onOpen: (url: string) => void;
   onContextMenu: (entry: EntryGroup, event: MouseEvent) => void;
@@ -14,6 +16,8 @@ interface SearchResultsProps {
 export function SearchResults({
   query,
   results,
+  total,
+  truncated,
   loading,
   onOpen,
   onContextMenu,
@@ -25,7 +29,13 @@ export function SearchResults({
       <header className="search-results-header">
         <div>
           <h1>「{query}」の検索結果</h1>
-          <span>{loading ? '検索中…' : `${formatCount(results.length)}件`}</span>
+          <span>
+            {loading
+              ? '検索中…'
+              : truncated
+                ? `${formatCount(total)}件以上（上位${formatCount(results.length)}件を表示）`
+                : `${formatCount(total)}件`}
+          </span>
         </div>
       </header>
 

@@ -7,15 +7,19 @@ import type { VaultRevision } from '@/utils/vault-events';
 export function useSearch(
   query: string,
   revision: VaultRevision,
-): { results: SearchResult[]; loading: boolean } {
+): { results: SearchResult[]; loading: boolean; total: number; truncated: boolean } {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
 
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
       setResults([]);
       setLoading(false);
+      setTotal(0);
+      setTruncated(false);
       return;
     }
 
@@ -29,12 +33,16 @@ export function useSearch(
       void searchPages(trimmed)
         .then((value) => {
           if (!active) return;
-          setResults(value);
+          setResults(value.results);
+          setTotal(value.total);
+          setTruncated(value.truncated);
           setLoading(false);
         })
         .catch(() => {
           if (!active) return;
           setResults([]);
+          setTotal(0);
+          setTruncated(false);
           setLoading(false);
         });
     }, 150);
@@ -45,5 +53,5 @@ export function useSearch(
     };
   }, [query, revision]);
 
-  return { results, loading };
+  return { results, loading, total, truncated };
 }

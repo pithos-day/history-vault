@@ -28,10 +28,12 @@ describe('search', () => {
       pageRecord('https://other.test/vue', new Date(2025, 8, 24).getTime(), { title: 'Vue docs' }),
     ]);
 
-    const results = await searchPages('react');
+    const page = await searchPages('react');
 
-    expect(results).toHaveLength(1);
-    expect(results[0]?.page.title).toBe('React docs');
+    expect(page.results).toHaveLength(1);
+    expect(page.results[0]?.page.title).toBe('React docs');
+    expect(page.total).toBe(1);
+    expect(page.truncated).toBe(false);
   });
 
   it('filters by site and date range', async () => {
@@ -44,9 +46,23 @@ describe('search', () => {
     const siteResults = await searchPages('site:example.com');
     const dateResults = await searchPages('after:2025-09-26 before:2025-09-27');
 
-    expect(siteResults).toHaveLength(2);
-    expect(dateResults).toHaveLength(1);
-    expect(dateResults[0]?.page.title).toBe('Beta');
+    expect(siteResults.results).toHaveLength(2);
+    expect(dateResults.results).toHaveLength(1);
+    expect(dateResults.results[0]?.page.title).toBe('Beta');
+  });
+
+  it('reports when results are truncated by the display limit', async () => {
+    await db.pages.bulkPut([
+      pageRecord('https://example.com/a', new Date(2025, 8, 25).getTime(), { title: 'Alpha' }),
+      pageRecord('https://example.com/b', new Date(2025, 8, 26).getTime(), { title: 'Beta' }),
+      pageRecord('https://example.com/c', new Date(2025, 8, 27).getTime(), { title: 'Gamma' }),
+    ]);
+
+    const page = await searchPages('example.com', 2);
+
+    expect(page.results).toHaveLength(2);
+    expect(page.total).toBe(3);
+    expect(page.truncated).toBe(true);
   });
 
   it('returns highlight parts without dropping unmatched text', () => {
