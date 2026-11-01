@@ -60,7 +60,8 @@ export async function downloadVaultCsv(): Promise<void> {
   }
 
   downloadBlob(
-    new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }),
+    // The BOM keeps Japanese titles readable when the CSV is opened in Excel.
+    new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' }),
     `history-vault-${dayKey(Date.now())}.csv`,
   );
 }
